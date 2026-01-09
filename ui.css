@@ -73,8 +73,8 @@ body {
   }
   .sidebar {
     height: auto;
-    max-height: 500px; /* Optional: limit sidebar height on mobile */
-    overflow-y: auto;
+    max-height: none; /* Let it grow naturally */
+    overflow: visible; /* No inner scroll, use page scroll */
     border-right: none;
     border-bottom: 1px solid var(--border);
   }
