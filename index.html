@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Resume Builder Pro</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📄</text></svg>">
+  <link rel="stylesheet" href="ui.css" />
+</head>
+<body>
+
+  <div class="app-container">
+    
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div style="font-size: 24px;">🚀</div>
+        <div>
+          <h1>ResumePro <span style="font-size: 0.7em; font-weight: normal; display: block; margin-top: 2px;">السيرة الذاتية المطور</span></h1>
+          <div style="font-size: 11px; color: var(--text-muted);">ATS + CV + Cover Letter</div>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-item active" data-tab="basics">
+          <span>البيانات الأساسية</span> 👤
+        </button>
+        <button class="nav-item" data-tab="experience">
+          <span>الخبرة المهنية</span> 💼
+        </button>
+        <button class="nav-item" data-tab="projects">
+          <span>المشاريع</span> 🚀
+        </button>
+        <button class="nav-item" data-tab="education">
+          <span>التعليم</span> 🎓
+        </button>
+        <button class="nav-item" data-tab="skills">
+          <span>المهارات</span> ⭐
+        </button>
+        <button class="nav-item" data-tab="extras">
+          <span>إضافي (لغات/شهادات)</span> 🏅
+        </button>
+        <button class="nav-item" data-tab="cover">
+          <span>Cover Letter</span> 📝
+        </button>
+        <button class="nav-item" data-tab="settings">
+          <span>الإعدادات & ATS</span> ⚙️
+        </button>
+      </nav>
+
+      <div class="nav-footer">
+        <button id="btnNew" class="btn btn-full">📄 جديد</button>
+        <button id="btnLoadSample" class="btn btn-full">📂 تحميل مثال</button>
+        <label class="btn btn-full btn-file">
+          📥 استيراد JSON
+          <input id="fileImport" type="file" accept="application/json" style="display:none" />
+        </label>
+        <button id="btnExportJSON" class="btn btn-full">💾 حفظ JSON</button>
+        
+      <button id="btnDownloadAll" class="btn btn-primary btn-full" style="margin-top: 10px;">
+           ⬇️ تحميل الجميع (PDF)
+        </button>
+
+        <div style="margin-top: 20px; font-size: 11px; text-align: center; line-height: 1.6; color: var(--text-muted);">
+          تمت برمجته وتطويره باستخدام <a href="https://antigravity.google/" target="_blank" style="color: var(--primary);">Antigravity</a>
+          <br>
+          -
+          <br>
+          <a href="https://t.me/Interact2030" target="_blank" style="color: var(--primary);">لملتقى التعليم التفاعلي</a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- EDITOR -->
+    <main class="editor-section">
+      
+      <!-- BASICS -->
+      <section class="tabpane show" id="tab-basics">
+        <div class="section-header"><h2>البيانات الأساسية</h2></div>
+        
+        <div class="grid-2">
+          <div class="field">
+            <label>الاسم الكامل</label>
+            <input id="inName" type="text" placeholder="مثال: محمد أحمد">
+          </div>
+          <div class="field">
+            <label>العنوان المهني (Headline)</label>
+            <input id="inHeadline" type="text" placeholder="مثال: Senior Software Engineer">
+          </div>
+        </div>
+
+        <div class="grid-2">
+           <div class="field">
+            <label>البريد الإلكتروني</label>
+            <input id="inEmail" type="email" placeholder="name@example.com">
+          </div>
+          <div class="field">
+            <label>رقم الهاتف</label>
+            <input id="inPhone" type="text" placeholder="+966 50 000 0000">
+          </div>
+        </div>
+
+        <div class="grid-2">
+           <div class="field">
+            <label>الموقع (المدينة، الدولة)</label>
+            <input id="inLocation" type="text" placeholder="الرياض، السعودية">
+          </div>
+          <div class="field">
+            <label>الدور المستهدف (Target Role/Job)</label>
+            <input id="inTargetRole" type="text" placeholder="مهم لضبط الـ ATS">
+          </div>
+        </div>
+
+        <div class="field">
+          <label>الملخص المهني (Summary)</label>
+          <textarea id="inSummary" rows="5" placeholder="اكتب ملخصًا قويًا يبرز خبرتك وأهم مهاراتك..."></textarea>
+        </div>
+
+        <hr style="border-color: var(--border); margin: 20px 0;">
+        
+        <div class="section-header">
+          <h3>الروابط الاجتماعية</h3>
+          <button id="btnAddLink" class="btn btn-sm">+ إضافة</button>
+        </div>
+        <div id="linksList"></div>
+      </section>
+
+      <!-- EXPERIENCE -->
+      <section class="tabpane" id="tab-experience">
+        <div class="section-header">
+          <h2>الخبرة المهنية</h2>
+          <button id="btnAddExperience" class="btn btn-primary">+ إضافة خبرة</button>
+        </div>
+        <div id="experienceList"></div>
+      </section>
+
+      <!-- PROJECTS -->
+      <section class="tabpane" id="tab-projects">
+        <div class="section-header">
+           <h2>المشاريع</h2>
+           <button id="btnAddProject" class="btn btn-primary">+ إضافة مشروع</button>
+        </div>
+        <div id="projectsList"></div>
+      </section>
+
+      <!-- EDUCATION -->
+      <section class="tabpane" id="tab-education">
+        <div class="section-header">
+           <h2>التعليم</h2>
+           <button id="btnAddEducation" class="btn btn-primary">+ إضافة تعليم</button>
+        </div>
+        <div id="educationList"></div>
+      </section>
+
+      <!-- SKILLS -->
+      <section class="tabpane" id="tab-skills">
+        <div class="section-header"><h2>المهارات</h2></div>
+        
+        <div class="field">
+          <label>المهارات الأساسية (Core Skills) - افصل بفاصلة</label>
+          <input id="inSkillsCore" type="text" placeholder="JavaScript, Project Management, ...">
+        </div>
+
+        <div class="field">
+          <label>الأدوات والتقنيات (Tools/Tech) - افصل بفاصلة</label>
+          <input id="inSkillsTools" type="text" placeholder="VS Code, JIRA, Figma...">
+        </div>
+        
+        <div class="grid-2">
+          <div class="field">
+            <label>مهارات ناعمة (Soft Skills)</label>
+            <input id="inSkillsSoft" type="text" placeholder="Communication, Leadership...">
+          </div>
+          <div class="field">
+            <label>مجالات الخبرة (Domains)</label>
+            <input id="inSkillsDomains" type="text" placeholder="E-commerce, Fintech...">
+          </div>
+        </div>
+      </section>
+
+      <!-- EXTRAS -->
+      <section class="tabpane" id="tab-extras">
+        <div class="section-header">
+          <h2>الشهادات</h2>
+          <button id="btnAddCert" class="btn">+ إضافة</button>
+        </div>
+        <div id="certsList"></div>
+
+        <hr style="border-color: var(--border); margin: 30px 0;">
+
+        <div class="section-header">
+          <h2>اللغات</h2>
+          <button id="btnAddLang" class="btn">+ إضافة</button>
+        </div>
+        <div id="langsList"></div>
+      </section>
+
+      <!-- COVER LETTER -->
+      <section class="tabpane" id="tab-cover">
+        <div class="section-header"><h2>خطاب المقدمة (Cover Letter)</h2></div>
+        
+        <div class="grid-2">
+          <div class="field">
+            <label>اسم الشركة</label>
+            <input id="clCompany" type="text">
+          </div>
+          <div class="field">
+            <label>المسمى الوظيفي</label>
+            <input id="clRole" type="text">
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="field">
+            <label>اسم المسؤول (اختياري)</label>
+            <input id="clHiringManager" type="text">
+          </div>
+           <div class="field">
+            <label>نبرة الخطاب</label>
+            <select id="clTone">
+              <option value="professional">رسمي / Professional</option>
+              <option value="warm">ودّي / Warm</option>
+              <option value="bold">واثق / Bold</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>فقرة مخصصة (تضاف للخطاب)</label>
+          <textarea id="clCustom" rows="4"></textarea>
+        </div>
+      </section>
+
+      <!-- SETTINGS & ATS -->
+      <section class="tabpane" id="tab-settings">
+        <div class="section-header"><h2>إعدادات المعالجة</h2></div>
+        
+        <div class="grid-2">
+          <div class="field">
+            <label>لغة الإخراج</label>
+            <select id="optLanguage">
+              <option value="ar">العربية</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>نمط التصميم (Template)</label>
+            <select id="optTemplateStyle">
+              <option value="clean">رسمي (Clean)</option>
+              <option value="modern">عصري (Modern)</option>
+              <option value="minimal">بسيط (Minimal)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>خيارات متقدمة</label>
+          <div class="grid-3">
+             <div class="field">
+               <label>ATS Strict Check</label>
+               <select id="optATSStrict"><option value="true">مفعل</option><option value="false">معطل</option></select>
+             </div>
+             <div class="field">
+               <label>إخفاء الاسم (Anonymize)</label>
+               <select id="optAnonymize"><option value="false">لا</option><option value="true">نعم</option></select>
+             </div>
+             <div class="field">
+               <label>صورة شخصية (CV فقط)</label>
+               <select id="optIncludePhoto"><option value="false">لا</option><option value="true">نعم</option></select>
+             </div>
+          </div>
+          
+          <div class="grid-3" style="margin-top: 16px;">
+             <div class="field">
+               <label>عدد الصفحات (الهدف)</label>
+               <select id="optMaxPages">
+                 <option value="1">صفحة واحدة</option>
+                 <option value="2">صفحتين</option>
+               </select>
+             </div>
+             <div class="field">
+               <label>التركيز (Emphasis)</label>
+               <select id="optEmphasis">
+                 <option value="experience">الخبرة</option>
+                 <option value="skills">المهارات</option>
+                 <option value="projects">المشاريع</option>
+               </select>
+             </div>
+             <div class="field">
+               <label>استراتيجية الكلمات</label>
+               <select id="optKeywordStrategy">
+                 <option value="balanced">متوازن</option>
+                 <option value="aggressive">مكثف</option>
+               </select>
+             </div>
+          </div>
+        </div>
+
+        <hr style="border-color: var(--border); margin: 20px 0;">
+
+        <div class="section-header"><h2>تحليل الوصف الوظيفي (Job Description)</h2></div>
+        <div class="field">
+          <label>الصق وصف الوظيفة هنا لاستخراج الكلمات المفتاحية ومقارنتها</label>
+          <textarea id="jobDesc" rows="6"></textarea>
+        </div>
+        <button id="btnExtractKeywords" class="btn btn-primary" style="width:auto; display:inline-flex;">🔍 استخراج الكلمات المفتاحية</button>
+        
+        <div id="kwChips" class="chip-container"></div>
+        
+        <div id="atsReport" class="ats-score-panel"></div>
+      </section>
+
+    </main>
+
+    <!-- PREVIEW -->
+    <aside class="preview-section">
+      <div class="preview-toolbar">
+         <button id="btnPreviewATS" class="btn btn-sm">📄 ATS View</button>
+         <button id="btnPreviewCV" class="btn btn-sm">🎨 CV Design</button>
+         <button id="btnPreviewCL" class="btn btn-sm">📝 Cover Letter</button>
+      </div>
+
+      <div class="preview-frame-container">
+        <iframe id="previewFrame" title="Realtime Preview"></iframe>
+      </div>
+    </aside>
+
+  </div>
+
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

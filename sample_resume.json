@@ -1,0 +1,87 @@
+{
+  "options": {
+    "outputLanguage": "ar",
+    "templateStyle": "clean",
+    "atsStrictMode": true,
+    "maxPages": 1,
+    "emphasis": "experience",
+    "anonymize": false,
+    "keywordStrategy": "balanced",
+    "includePhoto": false
+  },
+  "jobDesc": "نبحث عن مطور واجهات... React, TypeScript, REST APIs, اختبار وحدات، تحسين الأداء...",
+  "resume": {
+    "meta": {
+      "language": "ar",
+      "targetRole": "Front-End Developer",
+      "keywords": ["react","typescript","rest","performance","testing","ci/cd","html","css","javascript"],
+      "lastUpdated": "2026-01-09"
+    },
+    "basics": {
+      "name": "الاسم الكامل",
+      "headline": "مطور واجهات | React | TypeScript",
+      "email": "name@email.com",
+      "phone": "+966500000000",
+      "location": "الرياض، السعودية",
+      "links": [
+        { "label": "LinkedIn", "url": "https://linkedin.com/in/username" },
+        { "label": "GitHub", "url": "https://github.com/username" }
+      ]
+    },
+    "summary": "مطور واجهات بخبرة في بناء واجهات سريعة وقابلة للصيانة، وتحسين الأداء وإمكانية الوصول.",
+    "skills": {
+      "core": ["JavaScript","TypeScript","React","HTML","CSS"],
+      "tools": ["Vite","Webpack","Jest","Git"],
+      "soft": ["التواصل","حل المشكلات","العمل الجماعي"],
+      "domains": ["E-commerce","Dashboards"]
+    },
+    "experience": [
+      {
+        "company": "شركة مثال",
+        "role": "Front-End Developer",
+        "location": "الرياض",
+        "startDate": "2023-02",
+        "endDate": "Present",
+        "tech": ["React","TypeScript","REST","Jest"],
+        "highlights": [
+          "بناء واجهات React معيارية حسّنت قابلية الصيانة.",
+          "تحسين الأداء عبر التحميل الكسول وتقسيم الحزم.",
+          "التعاون مع فريق الـ Backend لتصميم واجهات REST واضحة."
+        ]
+      }
+    ],
+    "projects": [
+      {
+        "name": "لوحة تحكم مبيعات",
+        "link": "https://example.com",
+        "context": "Dashboard لإدارة المبيعات والتقارير",
+        "tech": ["React"],
+        "highlights": ["مكونات قابلة لإعادة الاستخدام","تقارير تفاعلية"]
+      }
+    ],
+    "education": [
+      {
+        "institution": "جامعة مثال",
+        "degree": "بكالوريوس",
+        "field": "علوم الحاسب",
+        "startDate": "2018",
+        "endDate": "2022",
+        "details": ["مشروع تخرج في تطبيقات الويب"]
+      }
+    ],
+    "certifications": [
+      { "name": "AWS Cloud Practitioner", "issuer": "AWS", "date": "2024-06", "url": "" }
+    ],
+    "languages": [
+      { "name": "Arabic", "level": "Native" },
+      { "name": "English", "level": "Professional" }
+    ],
+    "coverLetter": {
+      "company": "شركة مثال",
+      "role": "Front-End Developer",
+      "hiringManager": "",
+      "tone": "professional",
+      "custom": ""
+    }
+  }
+}
