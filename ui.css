@@ -31,11 +31,11 @@
 
 body {
   margin: 0;
-  height: 100vh;
+  height: 100dvh;
   font-family: 'Inter', 'Cairo', sans-serif; /* Cairo for Arabic support */
   background: radial-gradient(circle at top center, #1e1e24 0%, var(--bg-dark) 60%);
   color: var(--text-main);
-  overflow: hidden; /* App-like feel */
+  overflow: hidden; /* App-like feel for desktop */
 }
 
 /* Scrollbar */
@@ -48,15 +48,42 @@ body {
 .app-container {
   display: grid;
   grid-template-columns: 280px 1fr 1fr; /* Sidebar, Editor, Preview */
-  height: 100vh;
+  height: 100dvh;
+  min-height: 0; /* Important for grid overflow */
 }
 
 @media (max-width: 1200px) {
   .app-container {
-    grid-template-columns: 260px 1fr; /* Preview becomes hidden or toggled */
+    grid-template-columns: 280px 1fr; /* Preview becomes hidden or toggled */
   }
   .preview-section { display: none; } 
   .preview-section.active-mobile { display: flex; position: fixed; inset: 0; z-index: 50; }
+}
+
+@media (max-width: 900px) {
+  body {
+    height: auto;
+    overflow-y: auto;
+  }
+  .app-container {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+    min-height: 100dvh;
+  }
+  .sidebar {
+    height: auto;
+    max-height: 500px; /* Optional: limit sidebar height on mobile */
+    overflow-y: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .editor-section {
+    height: auto;
+    overflow: visible;
+    flex: 1;
+  }
+  .preview-section { display: none; } /* On mobile, preview usually needs specific toggle */
 }
 
 /* Sidebar */
@@ -68,6 +95,8 @@ body {
   flex-direction: column;
   padding: 20px;
   gap: 20px;
+  overflow: hidden; /* Ensure inner scroll */
+  min-height: 0;
 }
 
 .brand {
@@ -131,6 +160,7 @@ body {
   padding: 30px;
   overflow-y: auto;
   background: var(--bg-dark);
+  min-height: 0;
 }
 
 .section-header {
