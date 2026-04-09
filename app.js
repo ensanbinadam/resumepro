@@ -38,6 +38,7 @@ function emptyState(){
         email: "",
         phone: "",
         location: "",
+        photo: "",
         links: []
       },
       summary: "",
@@ -460,7 +461,7 @@ function computeATSReport(r, jobDesc){
   if(!r.summary || r.summary.length<50) { score-=10; warn.push("الملخص قصير جداً أو مفقود"); }
   if(!r.experience.length) { score-=20; warn.push("لا توجد خبرات مسجلة"); }
   
-  const skillsCount = r.skills.core.length + r.skills.tools.length;
+  const skillsCount = r.skills.core.length + r.skills.tools.length + r.skills.soft.length + r.skills.domains.length;
   if(skillsCount<5) { score-=10; warn.push("المهارات المسجلة قليلة جداً"); }
 
   // Job Match
@@ -516,9 +517,9 @@ function buildHTML(type, state){
   const dir = isAr ? "rtl" : "ltr";
   
   // Choose Colors based on template
-  let accent = "#2b3a52";
-  if(options.templateStyle === "modern") accent = "#3b82f6";
-  if(options.templateStyle === "minimal") accent = "#111";
+  let accent = "#4f46e5";
+  if(options.templateStyle === "modern") accent = "#8b5cf6";
+  if(options.templateStyle === "minimal") accent = "#334155";
 
   // Shared CSS
   const css = `
@@ -545,14 +546,17 @@ function buildHTML(type, state){
     // Header
     const basics = resume.basics;
     body += `
-      <header>
-        <h1>${htmlEscape(basics.name)}</h1>
-        <div class="job-title">${htmlEscape(basics.headline)}</div>
-        <div class="contact-line">
-          ${basics.email ? `<span>📧 ${htmlEscape(basics.email)}</span>` : ""}
-          ${basics.phone ? `<span>📱 ${htmlEscape(basics.phone)}</span>` : ""}
-          ${basics.location ? `<span>📍 ${htmlEscape(basics.location)}</span>` : ""}
-          ${(basics.links||[]).map(l=>`<a href="${l.url}">${htmlEscape(l.label||"Link")}</a>`).join(" • ")}
+      <header style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px;">
+        ${options.includePhoto && basics.photo ? `<img src="${basics.photo}" alt="Profile" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent);">` : ""}
+        <div>
+          <h1>${htmlEscape(basics.name)}</h1>
+          <div class="job-title">${htmlEscape(basics.headline)}</div>
+          <div class="contact-line">
+            ${basics.email ? `<span>📧 ${htmlEscape(basics.email)}</span>` : ""}
+            ${basics.phone ? `<span>📱 ${htmlEscape(basics.phone)}</span>` : ""}
+            ${basics.location ? `<span>📍 ${htmlEscape(basics.location)}</span>` : ""}
+            ${(basics.links||[]).map(l=>`<a href="${l.url}">${htmlEscape(l.label||"Link")}</a>`).join(" • ")}
+          </div>
         </div>
       </header>
     `;
@@ -600,7 +604,7 @@ function buildHTML(type, state){
     }
 
     // Skills
-    const allSkills = [...resume.skills.core, ...resume.skills.tools, ...resume.skills.domains];
+    const allSkills = [...(resume.skills.core || []), ...(resume.skills.tools || []), ...(resume.skills.soft || []), ...(resume.skills.domains || [])];
     if(allSkills.length){
       body += `<section><h2>${isAr?"المهارات":"Skills"}</h2>`;
       body += `<div>${allSkills.map(s=>`<span class="tag">${htmlEscape(s)}</span>`).join(" ")}</div>`;
@@ -670,6 +674,60 @@ function wireEvents(){
       window._previewTimer = setTimeout(()=>updatePreview("ats"), 500); 
     }
   });
+
+  const photoInput = el("inPhoto");
+  if (photoInput) {
+    photoInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) {
+        STATE.resume.basics.photo = "";
+        saveState(STATE);
+        updatePreview("ats");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          // Compress the image so it fits within LocalStorage limits
+          const canvas = document.createElement('canvas');
+          const MAX_SIZE = 400; // max width/height
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height *= MAX_SIZE / width;
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width *= MAX_SIZE / height;
+              height = MAX_SIZE;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          
+          const compressed = canvas.toDataURL('image/jpeg', 0.8);
+          
+          try {
+            STATE.resume.basics.photo = compressed;
+            saveState(STATE);
+            updatePreview("ats");
+            showToast("تم إضافة الصورة بنجاح", "success");
+          } catch (e) {
+            console.error(e);
+            showToast("الصورة لا تزال كبيرة جداً على ذاكرة المتصفح", "error");
+          }
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
 
   // Buttons
   el("btnNew").addEventListener("click", ()=>{
@@ -882,6 +940,15 @@ function wireEvents(){
         downloadFile(`${baseName}_data.json`, json, "application/json");
         showToast("✅ تم تنزيل جميع الملفات");
     }, 1500);
+  });
+
+  // Print PDF for Current Preview
+  el("btnDownloadPDF").addEventListener("click", ()=>{
+    const iframe = el("previewFrame");
+    if(iframe && iframe.contentWindow) {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    }
   });
 } 
 

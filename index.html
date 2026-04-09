@@ -66,8 +66,12 @@
         </label>
         <button id="btnExportJSON" class="btn btn-full">💾 حفظ JSON</button>
         
-      <button id="btnDownloadAll" class="btn btn-primary btn-full" style="margin-top: 10px;">
-           ⬇️ تحميل الجميع (PDF)
+        <button id="btnDownloadAll" class="btn btn-full" style="margin-top: 10px;">
+           🌐 تحميل الجميع (ملفات html)
+        </button>
+
+        <button id="btnDownloadPDF" class="btn btn-primary btn-full" style="margin-top: 10px;">
+           🖨️ طباعة PDF (للمعاينة الحالية)
         </button>
 
         <div style="margin-top: 20px; font-size: 11px; text-align: center; line-height: 1.6; color: var(--text-muted);">
@@ -95,6 +99,13 @@
           <div class="field">
             <label>العنوان المهني (Headline)</label>
             <input id="inHeadline" type="text" placeholder="مثال: Senior Software Engineer">
+          </div>
+        </div>
+
+        <div class="grid-2">
+           <div class="field">
+            <label>الصورة الشخصية (تظهر في تصميم الـ CV إذا فعلت الخيار)</label>
+            <input id="inPhoto" type="file" accept="image/png, image/jpeg, image/jpg" style="padding: 10px;">
           </div>
         </div>
 
@@ -167,23 +178,22 @@
         
         <div class="field">
           <label>المهارات الأساسية (Core Skills) - افصل بفاصلة</label>
-          <input id="inSkillsCore" type="text" placeholder="JavaScript, Project Management, ...">
+          <textarea id="inSkillsCore" rows="2" placeholder="JavaScript, Project Management, ..."></textarea>
         </div>
 
         <div class="field">
           <label>الأدوات والتقنيات (Tools/Tech) - افصل بفاصلة</label>
-          <input id="inSkillsTools" type="text" placeholder="VS Code, JIRA, Figma...">
+          <textarea id="inSkillsTools" rows="2" placeholder="VS Code, JIRA, Figma..."></textarea>
         </div>
         
-        <div class="grid-2">
-          <div class="field">
-            <label>مهارات ناعمة (Soft Skills)</label>
-            <input id="inSkillsSoft" type="text" placeholder="Communication, Leadership...">
-          </div>
-          <div class="field">
-            <label>مجالات الخبرة (Domains)</label>
-            <input id="inSkillsDomains" type="text" placeholder="E-commerce, Fintech...">
-          </div>
+        <div class="field">
+          <label>مهارات ناعمة (Soft Skills) - افصل بفاصلة</label>
+          <textarea id="inSkillsSoft" rows="2" placeholder="Communication, Leadership..."></textarea>
+        </div>
+
+        <div class="field">
+          <label>مجالات الخبرة (Domains) - افصل بفاصلة</label>
+          <textarea id="inSkillsDomains" rows="2" placeholder="E-commerce, Fintech..."></textarea>
         </div>
       </section>
 
