@@ -87,6 +87,110 @@ const safe = (s) => (s ?? "").toString().trim();
 const splitCSV = (s) => (s||"").split(/[,،]+/).map(x=>x.trim()).filter(Boolean);
 const uniq = (arr) => [...new Set((arr||[]).map(safe).filter(Boolean))];
 
+function localizeDateLabel(value, isAr){
+  const text = safe(value);
+  if (!text) return "";
+  if (!isAr) return text;
+  const currentLabels = ["present", "current", "now", "ongoing", "حتى الآن", "الحالي"];
+  return currentLabels.includes(text.toLocaleLowerCase()) ? "حتى الآن" : text;
+}
+
+function formatDateRange(startDate, endDate, isAr=false){
+  const start = localizeDateLabel(startDate, isAr);
+  const end = localizeDateLabel(endDate, isAr);
+  if (start && end) return `${start} — ${end}`;
+  return start || end;
+}
+
+function formatEducationCredential(education, isAr){
+  const degree = safe(education?.degree);
+  const field = safe(education?.field);
+  if (!degree) return field;
+  if (!field) return degree;
+
+  const normalizedDegree = degree.toLocaleLowerCase();
+  const normalizedField = field.toLocaleLowerCase();
+  if (normalizedDegree.includes(normalizedField)) return degree;
+
+  if (isAr) {
+    if (/(^|\s)(في|in)\s*$/i.test(degree)) return `${degree} ${field}`;
+    if (/(^|\s)(في|in)(\s|$)/i.test(degree)) return `${degree} - ${field}`;
+    return `${degree} في ${field}`;
+  }
+
+  if (/\bin\s*$/i.test(degree)) return `${degree} ${field}`;
+  if (/\bin\b/i.test(degree)) return `${degree} - ${field}`;
+  return `${degree} in ${field}`;
+}
+
+function wordCount(text){
+  return (safe(text).match(/[\p{L}\p{N}+#.-]+/gu) || []).length;
+}
+
+function cleanList(items){
+  return (items || []).map(safe).filter(Boolean);
+}
+
+function safeUrl(url){
+  const value = safe(url);
+  if (!value) return "";
+  if (/^(https?:|mailto:|tel:)/i.test(value)) return value;
+  if (/^[\w.-]+\.[a-z]{2,}([/?#].*)?$/i.test(value)) return `https://${value}`;
+  return "#";
+}
+
+function joinNonEmpty(parts, separator=" | "){
+  return cleanList(parts).join(separator);
+}
+
+function normalizeForSearch(text){
+  return safe(text).toLocaleLowerCase()
+    .replace(/[إأآا]/g, "ا")
+    .replace(/[ىي]/g, "ي")
+    .replace(/ة/g, "ه");
+}
+
+function resumeTextForMatching(r){
+  return [
+    r.basics?.headline,
+    r.basics?.location,
+    r.summary,
+    ...(r.skills?.core || []),
+    ...(r.skills?.tools || []),
+    ...(r.skills?.soft || []),
+    ...(r.skills?.domains || []),
+    ...(r.experience || []).flatMap(x=>[x.company, x.role, x.location, ...(x.highlights || []), ...(x.tech || [])]),
+    ...(r.projects || []).flatMap(p=>[p.name, p.context, ...(p.highlights || []), ...(p.tech || [])]),
+    ...(r.education || []).flatMap(e=>[e.institution, e.degree, e.field, ...(e.details || [])]),
+    ...(r.certifications || []).flatMap(c=>[c.name, c.issuer]),
+    ...(r.languages || []).flatMap(l=>[l.name, l.level])
+  ].join(" ");
+}
+
+function hasAnyValue(values){
+  return values.some(value=>Array.isArray(value) ? cleanList(value).length : Boolean(safe(value)));
+}
+
+function getExperienceEntries(r){
+  return (r.experience || []).filter(x=>hasAnyValue([x.company, x.role, x.location, x.startDate, x.endDate, x.highlights, x.tech]));
+}
+
+function getProjectEntries(r){
+  return (r.projects || []).filter(p=>hasAnyValue([p.name, p.link, p.context, p.highlights, p.tech]));
+}
+
+function getEducationEntries(r){
+  return (r.education || []).filter(e=>hasAnyValue([e.institution, e.degree, e.field, e.startDate, e.endDate, e.details]));
+}
+
+function getCertificationEntries(r){
+  return (r.certifications || []).filter(c=>hasAnyValue([c.name, c.issuer, c.date, c.url]));
+}
+
+function getLanguageEntries(r){
+  return (r.languages || []).filter(l=>hasAnyValue([l.name, l.level]));
+}
+
 function htmlEscape(s){
   return (s ?? "").toString()
     .replaceAll("&","&amp;")
@@ -237,7 +341,10 @@ function renderEducation(){
     </div>
     <div class="grid-2">
       <div class="field"><label>التخصص</label><input data-bind="eduField" data-idx="${idx}" value="${htmlEscape(e.field||"")}"></div>
-      <div class="field"><label>التواريخ</label><input data-bind="eduStart" data-idx="${idx}" placeholder="2018 - 2022" value="${htmlEscape(e.startDate||"")}"></div>
+      <div class="field"><label>تاريخ البدء</label><input data-bind="eduStart" data-idx="${idx}" placeholder="2018" value="${htmlEscape(e.startDate||"")}"></div>
+    </div>
+    <div class="grid-2">
+      <div class="field"><label>تاريخ الانتهاء</label><input data-bind="eduEnd" data-idx="${idx}" placeholder="2022" value="${htmlEscape(e.endDate||"")}"></div>
     </div>
     <div class="field"><label>تفاصيل إضافية</label><textarea rows="3" data-bind="eduDetails" data-idx="${idx}">${htmlEscape((e.details||[]).join("\n"))}</textarea></div>
   `)).join("");
@@ -306,6 +413,7 @@ function onRepeatableInput(e){
   if (bind==="eduDegree") r.education[idx].degree = safe(t.value);
   if (bind==="eduField") r.education[idx].field = safe(t.value);
   if (bind==="eduStart") r.education[idx].startDate = safe(t.value);
+  if (bind==="eduEnd") r.education[idx].endDate = safe(t.value);
   if (bind==="eduDetails") r.education[idx].details = (t.value||"").split("\n").map(x=>x.trim()).filter(Boolean);
 
   if (bind==="certName") r.certifications[idx].name = safe(t.value);
@@ -332,7 +440,7 @@ function onRepeatableClick(e){
   const act = btn.dataset.act;
   const r = STATE.resume;
 
-  const refresh = () => { saveState(STATE); renderAll(); };
+  const refresh = () => { saveState(STATE); renderAll(); updatePreview(CURRENT_PREVIEW); };
 
   if (act==="delLink") { r.basics.links.splice(idx,1); refresh(); return; }
   if (act==="delExp") { r.experience.splice(idx,1); refresh(); return; }
@@ -428,16 +536,18 @@ function collectFromUI(){
 }
 
 // ---------- ATS & Analysis ----------
-function extractKeywords(text){
+function extractKeywords(text, limit=35){
   const t=(text||"").toLowerCase();
   const raw=t.replace(/[^\p{L}\p{N}\s+#.-]/gu," ").split(/\s+/).map(x=>x.trim()).filter(x=>x.length>=3);
   const stop=new Set(["the","and","for","with","you","your","are","our","from","that","this","will","have","can","skills","work","team","join","year","years",
-    "من","في","عن","على","الى","إلى","مع","هذا","ان","أن","لا","ما","هو","هي","هم"]);
+    "role","candidate","required","preferred","using","able","ability","responsible","including","based",
+    "من","في","عن","على","الى","إلى","مع","هذا","هذه","ذلك","تلك","الذي","التي","ان","أن","لا","ما","هو","هي","هم","أو","او","كل","كما","لدى","ضمن","غير","بين","يجب","نبحث","مطلوب"]);
   const freq=new Map();
   raw.forEach(w=>{
-    if(!stop.has(w) && !/^\d+$/.test(w)) freq.set(w, (freq.get(w)||0)+1);
+    const normalized = normalizeForSearch(w);
+    if(!stop.has(normalized) && !/^\d+$/.test(normalized)) freq.set(normalized, (freq.get(normalized)||0)+1);
   });
-  return [...freq.entries()].sort((a,b)=>b[1]-a[1]).map(x=>x[0]).slice(0,35);
+  return [...freq.entries()].sort((a,b)=>b[1]-a[1]).map(x=>x[0]).slice(0,limit);
 }
 
 function renderKeywordChips(){
@@ -452,51 +562,162 @@ function renderKeywordChips(){
   });
 }
 
-function computeATSReport(r, jobDesc){
+function getSkillList(r){
+  return [
+    ...(r.skills.core || []),
+    ...(r.skills.tools || []),
+    ...(r.skills.soft || []),
+    ...(r.skills.domains || [])
+  ].map(safe).filter(Boolean);
+}
+
+function getDuplicateSkills(skills){
+  const seen = new Set();
+  const duplicated = new Set();
+  skills.forEach(skill=>{
+    const key = normalizeForSearch(skill);
+    if (seen.has(key)) duplicated.add(skill);
+    seen.add(key);
+  });
+  return [...duplicated];
+}
+
+function getResumeBullets(r){
+  return [
+    ...getExperienceEntries(r).flatMap(x=>x.highlights || []),
+    ...getProjectEntries(r).flatMap(p=>p.highlights || [])
+  ].map(safe).filter(Boolean);
+}
+
+function isWeakBullet(text){
+  const normalized = normalizeForSearch(text);
+  const genericStart = /^(عملت|قمت|شاركت|ساهمت|مسؤول|مسؤوله|worked|helped|participated|responsible|assisted)\b/i.test(normalized);
+  const hasMetric = /(\d+|%|٪|ريال|sar|usd|مليون|الف|ألف|kpi|sla|مستخدم|عميل|طالب|طالبه|موظف)/i.test(normalized);
+  return wordCount(text) < 7 || (genericStart && !hasMetric);
+}
+
+function getKeywordMatchReport(r, jobDesc, strategy="balanced"){
+  if(!jobDesc || jobDesc.length <= 20) return {keywords: [], matched: [], missing: [], ratio: null};
+  const limit = strategy === "aggressive" ? 18 : 12;
+  const keywords = extractKeywords(jobDesc, limit);
+  const resumeText = normalizeForSearch(resumeTextForMatching(r));
+  const matched = keywords.filter(w=>resumeText.includes(normalizeForSearch(w)));
+  const missing = keywords.filter(w=>!resumeText.includes(normalizeForSearch(w)));
+  return {keywords, matched, missing, ratio: matched.length / Math.max(1, keywords.length)};
+}
+
+function computeATSReport(r, jobDesc, options=STATE.options){
   let score = 100;
   const warn = [];
+  const tips = [];
+  const strictMode = options.atsStrictMode !== false;
   
   if(!r.basics.name) { score-=10; warn.push("الاسم الكامل مفقود"); }
-  if(!r.basics.email) { score-=5; warn.push("البريد الإلكتروني مفقود"); }
-  if(!r.summary || r.summary.length<50) { score-=10; warn.push("الملخص قصير جداً أو مفقود"); }
-  if(!r.experience.length) { score-=20; warn.push("لا توجد خبرات مسجلة"); }
-  
-  const skillsCount = r.skills.core.length + r.skills.tools.length + r.skills.soft.length + r.skills.domains.length;
-  if(skillsCount<5) { score-=10; warn.push("المهارات المسجلة قليلة جداً"); }
+  if(!r.basics.email) { score-=8; warn.push("البريد الإلكتروني مفقود"); }
+  if(!r.basics.phone) { score-=6; warn.push("رقم الهاتف مفقود"); }
+  if(!r.basics.headline && !r.meta.targetRole) { score-=5; warn.push("المسمى المهني أو الدور المستهدف مفقود"); }
 
-  // Job Match
-  if(jobDesc && jobDesc.length>20){
-     const jdWords = extractKeywords(jobDesc);
-     const resumeText = JSON.stringify(r).toLowerCase();
-     let match = 0;
-     jdWords.forEach(w=>{
-       if(resumeText.includes(w)) match++;
-     });
-     const ratio = match / Math.max(1, jdWords.length);
-     if(ratio < 0.3) { score-=15; warn.push("تطابق الكلمات المفتاحية ضعيف مع الوصف الوظيفي"); }
+  const experienceEntries = getExperienceEntries(r);
+  const projectEntries = getProjectEntries(r);
+
+  const summaryWords = wordCount(r.summary);
+  if(!r.summary || summaryWords < 25) { score-=10; warn.push("الملخص المهني قصير؛ الأفضل 25 إلى 70 كلمة واضحة"); }
+  if(summaryWords > 90) { score-=5; tips.push("الملخص طويل؛ اختصره حتى يبقى سريع القراءة"); }
+
+  if(!experienceEntries.length && !projectEntries.length) {
+    score-=20;
+    warn.push("أضف خبرة أو مشاريع تثبت قدرتك العملية");
+  } else if(!experienceEntries.length && projectEntries.length) {
+    tips.push("لا توجد خبرات؛ سيتم إبراز المشاريع تلقائياً لأنها أقوى دليل متاح");
+  }
+  
+  const skills = getSkillList(r);
+  if(skills.length < 6) { score-=8; warn.push("المهارات قليلة؛ أضف أهم المهارات المرتبطة بالوظيفة فقط"); }
+  if(skills.length > 30) { score-=4; tips.push("المهارات كثيرة؛ احذف الأقل صلة حتى لا تبدو القائمة عامة"); }
+
+  const duplicateSkills = getDuplicateSkills(skills);
+  if(duplicateSkills.length) {
+    score-=4;
+    tips.push(`هناك مهارات مكررة: ${duplicateSkills.slice(0, 4).join("، ")}`);
+  }
+
+  const bullets = getResumeBullets(r);
+  if((experienceEntries.length || projectEntries.length) && bullets.length < 3) {
+    score-=10;
+    warn.push("نقاط الإنجاز قليلة؛ أضف 3 نقاط قوية على الأقل في الخبرة أو المشاريع");
+  }
+
+  const weakBullets = bullets.filter(isWeakBullet);
+  if(weakBullets.length) {
+    if(strictMode) score-=Math.min(12, weakBullets.length * 4);
+    tips.push("بعض نقاط الخبرة/المشاريع عامة؛ اجعلها تبدأ بفعل قوي وتنتهي بأثر أو نتيجة");
+  }
+
+  const educationWithoutDates = getEducationEntries(r).filter(e=>safe(e.institution) && !safe(e.startDate) && !safe(e.endDate));
+  if(educationWithoutDates.length) tips.push("بعض سجلات التعليم بلا تاريخ؛ أضف سنة التخرج إن كانت مناسبة");
+
+  const totalWords = wordCount(resumeTextForMatching(r));
+  const pageWordTarget = Number(options.maxPages || 1) === 1 ? 650 : 1150;
+  if(totalWords > pageWordTarget) {
+    tips.push(Number(options.maxPages || 1) === 1
+      ? "السيرة طويلة لهدف صفحة واحدة؛ اختصر النقاط الأقل صلة"
+      : "السيرة طويلة نسبياً؛ راجع النقاط المتكررة أو الأقل تأثيراً");
+  }
+
+  const keywordReport = getKeywordMatchReport(r, jobDesc, options.keywordStrategy);
+  if(keywordReport.ratio !== null){
+     if(keywordReport.ratio < 0.35) {
+       if(strictMode) score-=15;
+       warn.push("تطابق الكلمات المفتاحية ضعيف مع الوصف الوظيفي");
+     }
+     else if(keywordReport.ratio < 0.55) {
+       if(strictMode) score-=8;
+       tips.push("تطابق الكلمات متوسط؛ راجع الكلمات الناقصة إن كانت صحيحة وتنطبق عليك");
+     }
   }
 
   score = Math.max(0, score);
-  return {score, warn};
+  return {score, warn, tips, keywordReport};
 }
 
 function updateATSPanel(){
-  const rep = computeATSReport(STATE.resume, STATE.jobDesc);
+  const rep = computeATSReport(STATE.resume, STATE.jobDesc, STATE.options);
   const host = el("atsReport");
   if(!host) return;
   
   const level = rep.score >= 80 ? "score-good" : (rep.score >= 50 ? "score-warn" : "score-bad");
   
   let html = `<div style="display:flex; justify-content:space-between; align-items:center;">
-    <span class="score-badge ${level}">ATS Score: ${rep.score}/100</span>
+    <span class="score-badge ${level}">جاهزية السيرة: ${rep.score}/100</span>
   </div>`;
   
   if(rep.warn.length){
-    html += `<ul style="margin:10px 0 0; padding-inline-start:20px; color:var(--text-muted); font-size:13px;">
+    html += `<div class="report-title">الأولوية الآن</div>
+    <ul class="report-list">
       ${rep.warn.map(w=>`<li>${w}</li>`).join("")}
     </ul>`;
   } else {
-    html += `<div style="margin-top:10px; font-size:13px; color:var(--success);">✅ السيرة الذاتية تبدو ممتازة!</div>`;
+    html += `<div class="report-ok">السيرة جاهزة مبدئياً. راجع مطابقة كل وصف وظيفي قبل التقديم.</div>`;
+  }
+
+  if(rep.tips.length){
+    html += `<div class="report-title">تحسينات اختيارية</div>
+    <ul class="report-list report-list-muted">
+      ${rep.tips.map(w=>`<li>${w}</li>`).join("")}
+    </ul>`;
+  }
+
+  if(rep.keywordReport.ratio !== null){
+    const percent = Math.round(rep.keywordReport.ratio * 100);
+    html += `<div class="report-title">مطابقة الوصف الوظيفي: ${percent}%</div>`;
+    if(rep.keywordReport.matched.length){
+      html += `<div class="chip-group-label">موجودة في السيرة</div>
+      <div class="chip-container compact">${rep.keywordReport.matched.slice(0, 12).map(k=>`<span class="chip chip-match">${htmlEscape(k)}</span>`).join("")}</div>`;
+    }
+    if(rep.keywordReport.missing.length){
+      html += `<div class="chip-group-label">ناقصة أو تحتاج مراجعة</div>
+      <div class="chip-container compact">${rep.keywordReport.missing.slice(0, 12).map(k=>`<span class="chip chip-missing">${htmlEscape(k)}</span>`).join("")}</div>`;
+    }
   }
   
   host.innerHTML = html;
@@ -508,17 +729,27 @@ function updateATSPanel(){
 
 function buildHTML(type, state){
   const {resume, options} = state;
-  // This function would contain the massive CSS/HTML generation logic
-  // For brevity in this artifact, I will call the logic "Standard"
-  // In a real app we would have modular generators. 
-  // I will re-implement a robust generator here.
-  
   const isAr = options.outputLanguage === "ar";
+  const isATS = type === "ats";
   const dir = isAr ? "rtl" : "ltr";
+  const labels = {
+    summary: isAr ? "الملخص المهني" : "Summary",
+    experience: isAr ? "الخبرة المهنية" : "Experience",
+    projects: isAr ? "المشاريع" : "Projects",
+    skills: isAr ? "المهارات" : "Skills",
+    education: isAr ? "التعليم" : "Education",
+    certifications: isAr ? "الشهادات" : "Certifications",
+    languages: isAr ? "اللغات" : "Languages",
+    email: isAr ? "البريد" : "Email",
+    phone: isAr ? "الهاتف" : "Phone",
+    location: isAr ? "الموقع" : "Location",
+    technologies: isAr ? "التقنيات" : "Technologies",
+    projectLink: isAr ? "الرابط" : "Link"
+  };
   
   // Choose Colors based on template
-  let accent = "#4f46e5";
-  if(options.templateStyle === "modern") accent = "#8b5cf6";
+  let accent = "#2563eb";
+  if(options.templateStyle === "modern") accent = "#0f766e";
   if(options.templateStyle === "minimal") accent = "#334155";
 
   // Shared CSS
@@ -529,14 +760,25 @@ function buildHTML(type, state){
     a { text-decoration: none; color: var(--accent); }
     .page { max-width: 800px; margin: 0 auto; padding: 40px; }
     h1 { font-size: 28px; margin: 0; color: var(--accent); }
-    h2 { font-size: 16px; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); border-bottom: 2px solid var(--line); padding-bottom: 6px; margin: 24px 0 12px; }
+    h2 { font-size: 16px; text-transform: ${isAr ? "none" : "uppercase"}; letter-spacing: 0; color: var(--accent); border-bottom: 2px solid var(--line); padding-bottom: 6px; margin: 24px 0 12px; }
     .job-title { font-size: 14px; font-weight: 600; margin-top: 4px; color: var(--muted); }
-    .row { display: flex; justify-content: space-between; align-items: baseline; }
+    .row { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; }
     .meta { font-size: 12px; color: var(--muted); }
+    .entry { margin-bottom: 14px; break-inside: avoid; }
+    .entry-title { font-size: 15px; font-weight: 700; }
+    .entry-subtitle { font-size: 14px; color: #4b5563; }
+    .inline-list { font-size: 13px; margin-top: 4px; }
     ul { padding-inline-start: 18px; margin: 6px 0; }
     li { margin-bottom: 4px; font-size: 13px; }
     .tag { display: inline-block; background: #f3f4f6; padding: 2px 8px; border-radius: 4px; font-size: 12px; margin: 2px; }
     .contact-line { font-size: 13px; margin-top: 8px; display: flex; gap: 12px; flex-wrap: wrap; color: var(--muted); }
+    .ats-page { max-width: 780px; padding: 32px 40px; }
+    .ats-page h1 { color: #111827; font-size: 24px; }
+    .ats-page h2 { color: #111827; border-bottom: 1px solid #d1d5db; margin-top: 18px; }
+    .ats-page .tag { background: transparent; padding: 0; margin: 0; border-radius: 0; }
+    .ats-page .contact-line { color: #374151; gap: 8px; }
+    .ats-page .inline-list { color: #111827; }
+    .ats-page a { color: #111827; }
     @media print { .page { padding: 0; margin: 20px; } body { -webkit-print-color-adjust: exact; } }
   `;
 
@@ -545,122 +787,170 @@ function buildHTML(type, state){
   if(type === "ats" || type === "cv"){
     // Header
     const basics = resume.basics;
+    const displayName = options.anonymize ? (isAr ? "مرشح" : "Candidate") : basics.name;
+    const contactParts = [
+      basics.email ? `${isATS ? `${labels.email}: ` : "📧 "}${htmlEscape(basics.email)}` : "",
+      basics.phone ? `${isATS ? `${labels.phone}: ` : "📱 "}${htmlEscape(basics.phone)}` : "",
+      basics.location ? `${isATS ? `${labels.location}: ` : "📍 "}${htmlEscape(basics.location)}` : "",
+      ...(basics.links || []).map(l=>safeUrl(l.url) ? `<a href="${htmlEscape(safeUrl(l.url))}">${htmlEscape(l.label || safeUrl(l.url))}</a>` : "")
+    ].filter(Boolean);
+
+    const renderSection = (title, content) => content ? `<section><h2>${title}</h2>${content}</section>` : "";
+    const renderList = (items) => cleanList(items).length ? `<ul>${cleanList(items).map(h=>`<li>${htmlEscape(h)}</li>`).join("")}</ul>` : "";
+    const renderInlineList = (items) => {
+      const values = cleanList(items);
+      if(!values.length) return "";
+      if(isATS) return `<div class="inline-list">${values.map(htmlEscape).join(" | ")}</div>`;
+      return `<div class="inline-list">${values.map(s=>`<span class="tag">${htmlEscape(s)}</span>`).join(" ")}</div>`;
+    };
+
+    const sectionRenderers = {
+      summary: () => renderSection(labels.summary, resume.summary ? `<p style="font-size:13px">${htmlEscape(resume.summary)}</p>` : ""),
+      experience: () => {
+        const items = getExperienceEntries(resume);
+        if(!items.length) return "";
+        const content = items.map(x=>{
+          const experienceDate = formatDateRange(x.startDate, x.endDate, isAr);
+          const companyLine = joinNonEmpty([x.company, x.location], isAr ? "، " : " | ");
+          const tech = cleanList(x.tech || []);
+          return `
+            <div class="entry">
+              <div class="row">
+                <strong class="entry-title">${htmlEscape(x.role)}</strong>
+                ${experienceDate ? `<span class="meta">${htmlEscape(experienceDate)}</span>` : ""}
+              </div>
+              ${companyLine ? `<div class="entry-subtitle">${htmlEscape(companyLine)}</div>` : ""}
+              ${renderList(x.highlights)}
+              ${tech.length ? `<div class="inline-list">${isATS ? `${labels.technologies}: ${tech.map(htmlEscape).join(" | ")}` : `🛠 ${tech.map(t=>`<span class="tag">${htmlEscape(t)}</span>`).join(" ")}`}</div>` : ""}
+            </div>
+          `;
+        }).join("");
+        return renderSection(labels.experience, content);
+      },
+      projects: () => {
+        const items = getProjectEntries(resume);
+        if(!items.length) return "";
+        const content = items.map(p=>{
+          const url = safeUrl(p.link);
+          return `
+            <div class="entry">
+              <div class="row">
+                <strong class="entry-title">${htmlEscape(p.name)} ${url && !isATS ? `<a href="${htmlEscape(url)}" style="font-size:12px;">↗</a>` : ""}</strong>
+              </div>
+              ${p.context ? `<div style="font-size:13px; margin-bottom:4px;">${htmlEscape(p.context)}</div>` : ""}
+              ${url && isATS ? `<div class="meta">${labels.projectLink}: ${htmlEscape(url)}</div>` : ""}
+              ${renderList(p.highlights)}
+              ${renderInlineList(p.tech)}
+            </div>
+          `;
+        }).join("");
+        return renderSection(labels.projects, content);
+      },
+      skills: () => renderSection(labels.skills, renderInlineList(getSkillList(resume))),
+      education: () => {
+        const items = getEducationEntries(resume);
+        if(!items.length) return "";
+        const content = items.map(e=>{
+          const educationDate = formatDateRange(e.startDate, e.endDate, isAr);
+          const credential = formatEducationCredential(e, isAr);
+          return `
+            <div class="entry">
+              <div class="row">
+                <strong class="entry-title">${htmlEscape(e.institution)}</strong>
+                ${educationDate ? `<span class="meta">${htmlEscape(educationDate)}</span>` : ""}
+              </div>
+              ${credential ? `<div style="font-size:13px;">${htmlEscape(credential)}</div>` : ""}
+              ${renderList(e.details)}
+            </div>
+          `;
+        }).join("");
+        return renderSection(labels.education, content);
+      },
+      certifications: () => {
+        const items = getCertificationEntries(resume);
+        if(!items.length) return "";
+        const content = items.map(c=>{
+          const url = safeUrl(c.url);
+          const issuerDate = joinNonEmpty([c.issuer, localizeDateLabel(c.date, isAr)], isAr ? "، " : " | ");
+          return `
+            <div class="entry">
+              <div class="row">
+                <strong class="entry-title">${url ? `<a href="${htmlEscape(url)}">${htmlEscape(c.name)}</a>` : htmlEscape(c.name)}</strong>
+                ${issuerDate ? `<span class="meta">${htmlEscape(issuerDate)}</span>` : ""}
+              </div>
+            </div>
+          `;
+        }).join("");
+        return renderSection(labels.certifications, content);
+      },
+      languages: () => {
+        const items = getLanguageEntries(resume).map(l=>joinNonEmpty([l.name, l.level], " - ")).filter(Boolean);
+        if(!items.length) return "";
+        return renderSection(labels.languages, renderInlineList(items));
+      }
+    };
+
+    const getSectionOrder = () => {
+      let order = ["summary", "experience", "projects", "skills", "education", "certifications", "languages"];
+      if(options.emphasis === "projects") order = ["summary", "projects", "experience", "skills", "education", "certifications", "languages"];
+      if(options.emphasis === "skills") order = ["summary", "skills", "experience", "projects", "education", "certifications", "languages"];
+      if(!getExperienceEntries(resume).length && getProjectEntries(resume).length) order = ["summary", "projects", "skills", "education", "certifications", "languages", "experience"];
+      return [...new Set(order)];
+    };
+
     body += `
       <header style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px;">
-        ${options.includePhoto && basics.photo ? `<img src="${basics.photo}" alt="Profile" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent);">` : ""}
+        ${!isATS && options.includePhoto && basics.photo ? `<img src="${htmlEscape(basics.photo)}" alt="Profile" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent);">` : ""}
         <div>
-          <h1>${htmlEscape(basics.name)}</h1>
+          <h1>${htmlEscape(displayName)}</h1>
           <div class="job-title">${htmlEscape(basics.headline)}</div>
-          <div class="contact-line">
-            ${basics.email ? `<span>📧 ${htmlEscape(basics.email)}</span>` : ""}
-            ${basics.phone ? `<span>📱 ${htmlEscape(basics.phone)}</span>` : ""}
-            ${basics.location ? `<span>📍 ${htmlEscape(basics.location)}</span>` : ""}
-            ${(basics.links||[]).map(l=>`<a href="${l.url}">${htmlEscape(l.label||"Link")}</a>`).join(" • ")}
-          </div>
+          ${contactParts.length ? `<div class="contact-line">${contactParts.map(p=>`<span>${p}</span>`).join(isATS ? "" : "")}</div>` : ""}
         </div>
       </header>
     `;
 
-    // Summary
-    if(resume.summary) body += `<section><h2>${isAr?"الملخص المهني":"Summary"}</h2><p style="font-size:13px">${htmlEscape(resume.summary)}</p></section>`;
-
-    // Experience
-    if(resume.experience.length){
-      body += `<section><h2>${isAr?"الخبرة المهنية":"Experience"}</h2>`;
-      resume.experience.forEach(x=>{
-        body += `
-          <div style="margin-bottom:16px;">
-            <div class="row">
-              <strong style="font-size:15px;">${htmlEscape(x.role)}</strong>
-              <span class="meta">${htmlEscape(x.startDate)} — ${htmlEscape(x.endDate)}</span>
-            </div>
-            <div class="row">
-              <span style="font-size:14px; color:#4b5563;">${htmlEscape(x.company)}</span>
-              <span class="meta">${htmlEscape(x.location)}</span>
-            </div>
-            ${x.highlights.length ? `<ul>${x.highlights.map(h=>`<li>${htmlEscape(h)}</li>`).join("")}</ul>` : ""}
-            ${x.tech && x.tech.length ? `<div style="margin-top:4px; font-size:12px;">🛠 ${x.tech.map(t=>`<span class="tag">${htmlEscape(t)}</span>`).join(" ")}</div>` : ""}
-          </div>
-        `;
-      });
-      body += `</section>`;
-    }
-
-    // Projects
-    if(resume.projects.length){
-      body += `<section><h2>${isAr?"المشاريع":"Projects"}</h2>`;
-      resume.projects.forEach(p=>{
-        body += `
-          <div style="margin-bottom:12px;">
-            <div class="row">
-              <strong style="font-size:14px;">${htmlEscape(p.name)} ${p.link?`<a href="${p.link}" style="font-size:12px;">↗</a>`:""}</strong>
-            </div>
-            <div style="font-size:13px; margin-bottom:4px;">${htmlEscape(p.context)}</div>
-            ${p.highlights.length ? `<ul>${p.highlights.map(h=>`<li>${htmlEscape(h)}</li>`).join("")}</ul>` : ""}
-          </div>
-        `;
-      });
-      body += `</section>`;
-    }
-
-    // Skills
-    const allSkills = [...(resume.skills.core || []), ...(resume.skills.tools || []), ...(resume.skills.soft || []), ...(resume.skills.domains || [])];
-    if(allSkills.length){
-      body += `<section><h2>${isAr?"المهارات":"Skills"}</h2>`;
-      body += `<div>${allSkills.map(s=>`<span class="tag">${htmlEscape(s)}</span>`).join(" ")}</div>`;
-      body += `</section>`;
-    }
-
-    // Education
-    if(resume.education.length){
-      body += `<section><h2>${isAr?"التعليم":"Education"}</h2>`;
-      resume.education.forEach(e=>{
-        body += `
-          <div style="margin-bottom:8px;">
-            <div class="row">
-              <strong>${htmlEscape(e.institution)}</strong>
-              <span class="meta">${htmlEscape(e.startDate)} - ${htmlEscape(e.endDate)}</span>
-            </div>
-            <div style="font-size:13px;">${htmlEscape(e.degree)} ${e.field?`in ${htmlEscape(e.field)}`:""}</div>
-          </div>
-        `;
-      });
-      body += `</section>`;
-    }
+    body += getSectionOrder().map(key=>sectionRenderers[key]()).join("");
   } 
   else if (type === "cover") {
     // Simple Cover Letter logic
     const cl = resume.coverLetter;
+    const displayName = options.anonymize ? (isAr ? "مرشح" : "Candidate") : resume.basics.name;
+    const date = new Date().toLocaleDateString(isAr ? "ar-SA" : "en-US");
     body += `
       <header style="border-bottom: 2px solid var(--line); padding-bottom: 20px; margin-bottom: 30px;">
-        <h1 style="font-size:24px;">${htmlEscape(resume.basics.name)}</h1>
-        <div class="contact-line">${htmlEscape(resume.basics.email)} | ${htmlEscape(resume.basics.phone)}</div>
+        <h1 style="font-size:24px;">${htmlEscape(displayName)}</h1>
+        <div class="contact-line">${htmlEscape(joinNonEmpty([resume.basics.email, resume.basics.phone]))}</div>
       </header>
       <div style="margin-bottom: 30px; font-size: 14px; color: var(--muted);">
-        <div>${new Date().toDateString()}</div>
-        <div style="margin-top:10px;"><strong>To:</strong> ${htmlEscape(cl.hiringManager || "Hiring Manager")}</div>
+        <div>${htmlEscape(date)}</div>
+        <div style="margin-top:10px;"><strong>${isAr ? "إلى:" : "To:"}</strong> ${htmlEscape(cl.hiringManager || (isAr ? "فريق التوظيف" : "Hiring Manager"))}</div>
         <div>${htmlEscape(cl.company)}</div>
       </div>
       <div style="font-size: 14px; line-height: 1.8;">
-        <p>Dear ${htmlEscape(cl.hiringManager || "Hiring Team")},</p>
-        <p>I am writing to express my interest in the <strong>${htmlEscape(cl.role)}</strong> position at ${htmlEscape(cl.company)}.</p>
-        <p>${htmlEscape(cl.custom || "I believe my skills and background make me a strong candidate for this role.")}</p>
-        <p>Thank you for your time and consideration.</p>
+        <p>${isAr ? `السادة ${htmlEscape(cl.hiringManager || "فريق التوظيف")}،` : `Dear ${htmlEscape(cl.hiringManager || "Hiring Team")},`}</p>
+        <p>${isAr ? `أرغب في التقدم إلى وظيفة <strong>${htmlEscape(cl.role)}</strong> لدى ${htmlEscape(cl.company)}.` : `I am writing to express my interest in the <strong>${htmlEscape(cl.role)}</strong> position at ${htmlEscape(cl.company)}.`}</p>
+        <p>${htmlEscape(cl.custom || (isAr ? "أرى أن خبراتي ومهاراتي تجعلني مرشحاً مناسباً لهذا الدور." : "I believe my skills and background make me a strong candidate for this role."))}</p>
+        <p>${isAr ? "شكراً لوقتكم واهتمامكم." : "Thank you for your time and consideration."}</p>
         <br>
-        <p>Sincerely,</p>
-        <p><strong>${htmlEscape(resume.basics.name)}</strong></p>
+        <p>${isAr ? "مع خالص التحية،" : "Sincerely,"}</p>
+        <p><strong>${htmlEscape(displayName)}</strong></p>
       </div>
     `;
   }
 
-  return `<!doctype html><html lang="${isAr?"ar":"en"}" dir="${dir}"><head><meta charset="utf-8"><title>Preview</title><style>${css}</style></head><body><div class="page">${body}</div></body></html>`;
+  return `<!doctype html><html lang="${isAr?"ar":"en"}" dir="${dir}"><head><meta charset="utf-8"><title>Preview</title><style>${css}</style></head><body><div class="page ${isATS ? "ats-page" : "cv-page"}">${body}</div></body></html>`;
 }
 
 // ---------- Main Wiring ----------
+let CURRENT_PREVIEW = "ats";
 
 function updatePreview(type){
-  const html = buildHTML(type || "ats", STATE);
+  CURRENT_PREVIEW = type || CURRENT_PREVIEW || "ats";
+  const html = buildHTML(CURRENT_PREVIEW, STATE);
   el("previewFrame").srcdoc = html;
+  document.querySelectorAll(".preview-toolbar .btn").forEach(btn=>btn.classList.remove("active"));
+  const activeBtn = el(CURRENT_PREVIEW === "cv" ? "btnPreviewCV" : (CURRENT_PREVIEW === "cover" ? "btnPreviewCL" : "btnPreviewATS"));
+  if(activeBtn) activeBtn.classList.add("active");
   updateATSPanel();
 }
 
@@ -671,7 +961,7 @@ function wireEvents(){
       collectFromUI();
       // Debounce preview update slightly
       if(window._previewTimer) clearTimeout(window._previewTimer);
-      window._previewTimer = setTimeout(()=>updatePreview("ats"), 500); 
+      window._previewTimer = setTimeout(()=>updatePreview(CURRENT_PREVIEW), 500); 
     }
   });
 
@@ -682,7 +972,7 @@ function wireEvents(){
       if (!file) {
         STATE.resume.basics.photo = "";
         saveState(STATE);
-        updatePreview("ats");
+        updatePreview(CURRENT_PREVIEW);
         return;
       }
       const reader = new FileReader();
@@ -716,7 +1006,7 @@ function wireEvents(){
           try {
             STATE.resume.basics.photo = compressed;
             saveState(STATE);
-            updatePreview("ats");
+            updatePreview(CURRENT_PREVIEW);
             showToast("تم إضافة الصورة بنجاح", "success");
           } catch (e) {
             console.error(e);
@@ -735,6 +1025,7 @@ function wireEvents(){
       STATE = emptyState();
       saveState(STATE);
       fillUI();
+      updatePreview("ats");
       showToast("تم إنشاء سيرة ذاتية جديدة", "success");
     }
   });
@@ -886,6 +1177,7 @@ function wireEvents(){
       STATE = normalizeState(JSON.parse(text));
       saveState(STATE);
       fillUI();
+      updatePreview(CURRENT_PREVIEW);
       showToast("تم استيراد البيانات بنجاح", "success");
     } catch {
       showToast("خطأ في قراءة ملف JSON", "error");
@@ -899,17 +1191,17 @@ function wireEvents(){
     const kws = extractKeywords(desc);
     STATE.resume.meta.keywords = kws;
     renderKeywordChips();
-    updatePreview("ats");
+    updatePreview(CURRENT_PREVIEW);
     showToast(`تم استخراج ${kws.length} كلمة مفتاحية`, "success");
   });
 
   // Add Item Buttons
-  el("btnAddLink").addEventListener("click", ()=>{ STATE.resume.basics.links.push({label:"",url:""}); renderLinks(); });
-  el("btnAddExperience").addEventListener("click", ()=>{ STATE.resume.experience.push({company:"",role:"",startDate:"",endDate:"",highlights:[],tech:[]}); renderExperience(); });
-  el("btnAddProject").addEventListener("click", ()=>{ STATE.resume.projects.push({name:"",link:"",context:"",highlights:[],tech:[]}); renderProjects(); });
-  el("btnAddEducation").addEventListener("click", ()=>{ STATE.resume.education.push({institution:"",degree:"",startDate:"",endDate:"",details:[]}); renderEducation(); });
-  el("btnAddCert").addEventListener("click", ()=>{ STATE.resume.certifications.push({name:"",issuer:"",date:"",url:""}); renderCerts(); });
-  el("btnAddLang").addEventListener("click", ()=>{ STATE.resume.languages.push({name:"",level:""}); renderLangs(); });
+  el("btnAddLink").addEventListener("click", ()=>{ STATE.resume.basics.links.push({label:"",url:""}); saveState(STATE); renderLinks(); updatePreview(CURRENT_PREVIEW); });
+  el("btnAddExperience").addEventListener("click", ()=>{ STATE.resume.experience.push({company:"",role:"",startDate:"",endDate:"",highlights:[],tech:[]}); saveState(STATE); renderExperience(); updatePreview(CURRENT_PREVIEW); });
+  el("btnAddProject").addEventListener("click", ()=>{ STATE.resume.projects.push({name:"",link:"",context:"",highlights:[],tech:[]}); saveState(STATE); renderProjects(); updatePreview(CURRENT_PREVIEW); });
+  el("btnAddEducation").addEventListener("click", ()=>{ STATE.resume.education.push({institution:"",degree:"",startDate:"",endDate:"",details:[]}); saveState(STATE); renderEducation(); updatePreview(CURRENT_PREVIEW); });
+  el("btnAddCert").addEventListener("click", ()=>{ STATE.resume.certifications.push({name:"",issuer:"",date:"",url:""}); saveState(STATE); renderCerts(); updatePreview(CURRENT_PREVIEW); });
+  el("btnAddLang").addEventListener("click", ()=>{ STATE.resume.languages.push({name:"",level:""}); saveState(STATE); renderLangs(); updatePreview(CURRENT_PREVIEW); });
 
   // Preview Switchers
   el("btnPreviewATS").addEventListener("click", ()=>updatePreview("ats"));
