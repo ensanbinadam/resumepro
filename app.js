@@ -134,14 +134,6 @@ function cleanList(items){
   return (items || []).map(safe).filter(Boolean);
 }
 
-function safeUrl(url){
-  const value = safe(url);
-  if (!value) return "";
-  if (/^(https?:|mailto:|tel:)/i.test(value)) return value;
-  if (/^[\w.-]+\.[a-z]{2,}([/?#].*)?$/i.test(value)) return `https://${value}`;
-  return "#";
-}
-
 function joinNonEmpty(parts, separator=" | "){
   return cleanList(parts).join(separator);
 }
@@ -785,9 +777,7 @@ function buildHTML(type, state){
   const isAr = options.outputLanguage === "ar";
   const isATS = type === "ats";
   const dir = isAr ? "rtl" : "ltr";
-<<<<<<< HEAD
   const csp = "default-src 'none'; img-src data: https: http:; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; base-uri 'none'; form-action 'none';";
-=======
   const labels = {
     summary: isAr ? "الملخص المهني" : "Summary",
     experience: isAr ? "الخبرة المهنية" : "Experience",
@@ -802,7 +792,6 @@ function buildHTML(type, state){
     technologies: isAr ? "التقنيات" : "Technologies",
     projectLink: isAr ? "الرابط" : "Link"
   };
->>>>>>> 171611637715a803c90603fedafa0fc03b30786c
   
   // Choose Colors based on template
   let accent = "#2563eb";
@@ -845,35 +834,19 @@ function buildHTML(type, state){
     // Header
     const basics = resume.basics;
     const displayName = options.anonymize ? (isAr ? "مرشح" : "Candidate") : basics.name;
-<<<<<<< HEAD
     const displayEmail = options.anonymize ? "" : basics.email;
     const displayPhone = options.anonymize ? "" : basics.phone;
     const displayLocation = options.anonymize ? "" : basics.location;
     const photoSrc = safeImageSrc(basics.photo);
-    const contactLinks = (basics.links || []).map(l => {
-      const label = htmlEscape(l.label || "Link");
+    const contactLinks = options.anonymize ? [] : (basics.links || []).map(l => {
       const href = safeUrl(l.url);
-      return href ? `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>` : (label ? `<span>${label}</span>` : "");
-    }).filter(Boolean).join(" • ");
-
-    body += `
-      <header style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px;">
-        ${options.includePhoto && !options.anonymize && photoSrc ? `<img src="${photoSrc}" alt="Profile" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent);">` : ""}
-        <div>
-          <h1>${htmlEscape(displayName)}</h1>
-          <div class="job-title">${htmlEscape(basics.headline)}</div>
-          <div class="contact-line">
-            ${displayEmail ? `<span>📧 ${htmlEscape(displayEmail)}</span>` : ""}
-            ${displayPhone ? `<span>📱 ${htmlEscape(displayPhone)}</span>` : ""}
-            ${displayLocation ? `<span>📍 ${htmlEscape(displayLocation)}</span>` : ""}
-            ${options.anonymize ? "" : contactLinks}
-          </div>
-=======
+      return href ? `<a href="${href}" target="_blank" rel="noopener noreferrer">${htmlEscape(l.label || l.url)}</a>` : "";
+    }).filter(Boolean);
     const contactParts = [
-      basics.email ? `${isATS ? `${labels.email}: ` : "📧 "}${htmlEscape(basics.email)}` : "",
-      basics.phone ? `${isATS ? `${labels.phone}: ` : "📱 "}${htmlEscape(basics.phone)}` : "",
-      basics.location ? `${isATS ? `${labels.location}: ` : "📍 "}${htmlEscape(basics.location)}` : "",
-      ...(basics.links || []).map(l=>safeUrl(l.url) ? `<a href="${htmlEscape(safeUrl(l.url))}">${htmlEscape(l.label || safeUrl(l.url))}</a>` : "")
+      displayEmail ? `${isATS ? `${labels.email}: ` : "📧 "}${htmlEscape(displayEmail)}` : "",
+      displayPhone ? `${isATS ? `${labels.phone}: ` : "📱 "}${htmlEscape(displayPhone)}` : "",
+      displayLocation ? `${isATS ? `${labels.location}: ` : "📍 "}${htmlEscape(displayLocation)}` : "",
+      ...contactLinks
     ].filter(Boolean);
 
     const renderSection = (title, content) => content ? `<section><h2>${title}</h2>${content}</section>` : "";
@@ -981,115 +954,32 @@ function buildHTML(type, state){
 
     body += `
       <header style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px;">
-        ${!isATS && options.includePhoto && basics.photo ? `<img src="${htmlEscape(basics.photo)}" alt="Profile" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent);">` : ""}
+        ${!isATS && options.includePhoto && !options.anonymize && photoSrc ? `<img src="${photoSrc}" alt="Profile" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent);">` : ""}
         <div>
           <h1>${htmlEscape(displayName)}</h1>
           <div class="job-title">${htmlEscape(basics.headline)}</div>
           ${contactParts.length ? `<div class="contact-line">${contactParts.map(p=>`<span>${p}</span>`).join(isATS ? "" : "")}</div>` : ""}
->>>>>>> 171611637715a803c90603fedafa0fc03b30786c
         </div>
       </header>
     `;
 
-<<<<<<< HEAD
-    // Summary
-    if(resume.summary) body += `<section><h2>${isAr?"الملخص المهني":"Summary"}</h2><p style="font-size:13px">${htmlEscape(resume.summary)}</p></section>`;
-
-    // Experience
-    if(resume.experience.length){
-      body += `<section><h2>${isAr?"الخبرة المهنية":"Experience"}</h2>`;
-      resume.experience.forEach(x=>{
-        body += `
-          <div style="margin-bottom:16px;">
-            <div class="row">
-              <strong style="font-size:15px;">${htmlEscape(x.role)}</strong>
-              <span class="meta">${htmlEscape(x.startDate)} — ${htmlEscape(x.endDate)}</span>
-            </div>
-            <div class="row">
-              <span style="font-size:14px; color:#4b5563;">${htmlEscape(x.company)}</span>
-              <span class="meta">${htmlEscape(x.location)}</span>
-            </div>
-            ${x.highlights.length ? `<ul>${x.highlights.map(h=>`<li>${htmlEscape(h)}</li>`).join("")}</ul>` : ""}
-            ${x.tech && x.tech.length ? `<div style="margin-top:4px; font-size:12px;">🛠 ${x.tech.map(t=>`<span class="tag">${htmlEscape(t)}</span>`).join(" ")}</div>` : ""}
-          </div>
-        `;
-      });
-      body += `</section>`;
-    }
-
-    // Projects
-    if(resume.projects.length){
-      body += `<section><h2>${isAr?"المشاريع":"Projects"}</h2>`;
-      resume.projects.forEach(p=>{
-        const projectHref = safeUrl(p.link);
-        body += `
-          <div style="margin-bottom:12px;">
-            <div class="row">
-              <strong style="font-size:14px;">${htmlEscape(p.name)} ${projectHref ? `<a href="${projectHref}" target="_blank" rel="noopener noreferrer" style="font-size:12px;">↗</a>` : ""}</strong>
-            </div>
-            <div style="font-size:13px; margin-bottom:4px;">${htmlEscape(p.context)}</div>
-            ${p.highlights.length ? `<ul>${p.highlights.map(h=>`<li>${htmlEscape(h)}</li>`).join("")}</ul>` : ""}
-          </div>
-        `;
-      });
-      body += `</section>`;
-    }
-
-    // Skills
-    const allSkills = [...(resume.skills.core || []), ...(resume.skills.tools || []), ...(resume.skills.soft || []), ...(resume.skills.domains || [])];
-    if(allSkills.length){
-      body += `<section><h2>${isAr?"المهارات":"Skills"}</h2>`;
-      body += `<div>${allSkills.map(s=>`<span class="tag">${htmlEscape(s)}</span>`).join(" ")}</div>`;
-      body += `</section>`;
-    }
-
-    // Education
-    if(resume.education.length){
-      body += `<section><h2>${isAr?"التعليم":"Education"}</h2>`;
-      resume.education.forEach(e=>{
-        body += `
-          <div style="margin-bottom:8px;">
-            <div class="row">
-              <strong>${htmlEscape(e.institution)}</strong>
-              <span class="meta">${htmlEscape(e.startDate)} - ${htmlEscape(e.endDate)}</span>
-            </div>
-            <div style="font-size:13px;">${htmlEscape(e.degree)} ${e.field?`in ${htmlEscape(e.field)}`:""}</div>
-          </div>
-        `;
-      });
-      body += `</section>`;
-    }
-=======
     body += getSectionOrder().map(key=>sectionRenderers[key]()).join("");
->>>>>>> 171611637715a803c90603fedafa0fc03b30786c
   } 
   else if (type === "cover") {
     // Simple Cover Letter logic
     const cl = resume.coverLetter;
     const displayName = options.anonymize ? (isAr ? "مرشح" : "Candidate") : resume.basics.name;
-<<<<<<< HEAD
     const displayEmail = options.anonymize ? "" : resume.basics.email;
     const displayPhone = options.anonymize ? "" : resume.basics.phone;
-    const today = new Intl.DateTimeFormat(isAr ? "ar-SA" : "en-US", { dateStyle: "long" }).format(new Date());
+    const date = new Intl.DateTimeFormat(isAr ? "ar-SA" : "en-US", { dateStyle: "long" }).format(new Date());
     body += `
       <header style="border-bottom: 2px solid var(--line); padding-bottom: 20px; margin-bottom: 30px;">
         <h1 style="font-size:24px;">${htmlEscape(displayName)}</h1>
         <div class="contact-line">${[displayEmail, displayPhone].filter(Boolean).map(htmlEscape).join(" | ")}</div>
       </header>
       <div style="margin-bottom: 30px; font-size: 14px; color: var(--muted);">
-        <div>${htmlEscape(today)}</div>
-        <div style="margin-top:10px;"><strong>To:</strong> ${htmlEscape(cl.hiringManager || "Hiring Manager")}</div>
-=======
-    const date = new Date().toLocaleDateString(isAr ? "ar-SA" : "en-US");
-    body += `
-      <header style="border-bottom: 2px solid var(--line); padding-bottom: 20px; margin-bottom: 30px;">
-        <h1 style="font-size:24px;">${htmlEscape(displayName)}</h1>
-        <div class="contact-line">${htmlEscape(joinNonEmpty([resume.basics.email, resume.basics.phone]))}</div>
-      </header>
-      <div style="margin-bottom: 30px; font-size: 14px; color: var(--muted);">
         <div>${htmlEscape(date)}</div>
         <div style="margin-top:10px;"><strong>${isAr ? "إلى:" : "To:"}</strong> ${htmlEscape(cl.hiringManager || (isAr ? "فريق التوظيف" : "Hiring Manager"))}</div>
->>>>>>> 171611637715a803c90603fedafa0fc03b30786c
         <div>${htmlEscape(cl.company)}</div>
       </div>
       <div style="font-size: 14px; line-height: 1.8;">
@@ -1098,28 +988,13 @@ function buildHTML(type, state){
         <p>${htmlEscape(cl.custom || (isAr ? "أرى أن خبراتي ومهاراتي تجعلني مرشحاً مناسباً لهذا الدور." : "I believe my skills and background make me a strong candidate for this role."))}</p>
         <p>${isAr ? "شكراً لوقتكم واهتمامكم." : "Thank you for your time and consideration."}</p>
         <br>
-<<<<<<< HEAD
-        <p>Sincerely,</p>
-=======
         <p>${isAr ? "مع خالص التحية،" : "Sincerely,"}</p>
->>>>>>> 171611637715a803c90603fedafa0fc03b30786c
         <p><strong>${htmlEscape(displayName)}</strong></p>
       </div>
     `;
   }
 
-<<<<<<< HEAD
-  return `<!doctype html><html lang="${isAr?"ar":"en"}" dir="${dir}"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Preview</title><style>${css}</style></head><body><div class="page">${body}</div></body></html>`;
-}
-
-// ---------- Main Wiring ----------
-let currentPreviewType = "ats";
-
-function updatePreview(type){
-  currentPreviewType = type || currentPreviewType || "ats";
-  const html = buildHTML(currentPreviewType, STATE);
-=======
-  return `<!doctype html><html lang="${isAr?"ar":"en"}" dir="${dir}"><head><meta charset="utf-8"><title>Preview</title><style>${css}</style></head><body><div class="page ${isATS ? "ats-page" : "cv-page"}">${body}</div></body></html>`;
+  return `<!doctype html><html lang="${isAr?"ar":"en"}" dir="${dir}"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Preview</title><style>${css}</style></head><body><div class="page ${isATS ? "ats-page" : "cv-page"}">${body}</div></body></html>`;
 }
 
 // ---------- Main Wiring ----------
@@ -1128,7 +1003,6 @@ let CURRENT_PREVIEW = "ats";
 function updatePreview(type){
   CURRENT_PREVIEW = type || CURRENT_PREVIEW || "ats";
   const html = buildHTML(CURRENT_PREVIEW, STATE);
->>>>>>> 171611637715a803c90603fedafa0fc03b30786c
   el("previewFrame").srcdoc = html;
   document.querySelectorAll(".preview-toolbar .btn").forEach(btn=>btn.classList.remove("active"));
   const activeBtn = el(CURRENT_PREVIEW === "cv" ? "btnPreviewCV" : (CURRENT_PREVIEW === "cover" ? "btnPreviewCL" : "btnPreviewATS"));
@@ -1143,11 +1017,7 @@ function wireEvents(){
       collectFromUI();
       // Debounce preview update slightly
       if(window._previewTimer) clearTimeout(window._previewTimer);
-<<<<<<< HEAD
-      window._previewTimer = setTimeout(()=>updatePreview(currentPreviewType), 500);
-=======
       window._previewTimer = setTimeout(()=>updatePreview(CURRENT_PREVIEW), 500); 
->>>>>>> 171611637715a803c90603fedafa0fc03b30786c
     }
   };
   document.body.addEventListener("input", syncFromFormEvent);
@@ -1160,8 +1030,7 @@ function wireEvents(){
       if (!file) {
         STATE.resume.basics.photo = "";
         saveState(STATE);
-<<<<<<< HEAD
-        updatePreview(currentPreviewType);
+        updatePreview(CURRENT_PREVIEW);
         return;
       }
       if(!/^image\/(png|jpe?g|webp)$/i.test(file.type || "")) {
@@ -1172,9 +1041,6 @@ function wireEvents(){
       if(file.size > MAX_PHOTO_BYTES) {
         showToast("حجم الصورة كبير. اختر صورة أقل من 5MB.", "error");
         e.target.value = "";
-=======
-        updatePreview(CURRENT_PREVIEW);
->>>>>>> 171611637715a803c90603fedafa0fc03b30786c
         return;
       }
       const reader = new FileReader();
@@ -1208,18 +1074,12 @@ function wireEvents(){
           try {
             const previousPhoto = STATE.resume.basics.photo;
             STATE.resume.basics.photo = compressed;
-<<<<<<< HEAD
             if(saveState(STATE)) {
-              updatePreview(currentPreviewType);
+              updatePreview(CURRENT_PREVIEW);
               showToast("تم إضافة الصورة بنجاح", "success");
             } else {
               STATE.resume.basics.photo = previousPhoto;
             }
-=======
-            saveState(STATE);
-            updatePreview(CURRENT_PREVIEW);
-            showToast("تم إضافة الصورة بنجاح", "success");
->>>>>>> 171611637715a803c90603fedafa0fc03b30786c
           } catch (e) {
             console.error(e);
             showToast("الصورة لا تزال كبيرة جداً على ذاكرة المتصفح", "error");
@@ -1396,11 +1256,7 @@ function wireEvents(){
       STATE = normalizeState(JSON.parse(text));
       saveState(STATE);
       fillUI();
-<<<<<<< HEAD
-      updatePreview(currentPreviewType);
-=======
       updatePreview(CURRENT_PREVIEW);
->>>>>>> 171611637715a803c90603fedafa0fc03b30786c
       showToast("تم استيراد البيانات بنجاح", "success");
     } catch {
       showToast("خطأ في قراءة ملف JSON", "error");
@@ -1415,30 +1271,17 @@ function wireEvents(){
     STATE.resume.meta.keywords = kws;
     saveState(STATE);
     renderKeywordChips();
-<<<<<<< HEAD
-    updatePreview(currentPreviewType);
-=======
     updatePreview(CURRENT_PREVIEW);
->>>>>>> 171611637715a803c90603fedafa0fc03b30786c
     showToast(`تم استخراج ${kws.length} كلمة مفتاحية`, "success");
   });
 
   // Add Item Buttons
-<<<<<<< HEAD
-  el("btnAddLink").addEventListener("click", ()=>{ STATE.resume.basics.links.push({label:"",url:""}); saveState(STATE); renderLinks(); });
-  el("btnAddExperience").addEventListener("click", ()=>{ STATE.resume.experience.push({company:"",role:"",startDate:"",endDate:"",highlights:[],tech:[]}); saveState(STATE); renderExperience(); });
-  el("btnAddProject").addEventListener("click", ()=>{ STATE.resume.projects.push({name:"",link:"",context:"",highlights:[],tech:[]}); saveState(STATE); renderProjects(); });
-  el("btnAddEducation").addEventListener("click", ()=>{ STATE.resume.education.push({institution:"",degree:"",startDate:"",endDate:"",details:[]}); saveState(STATE); renderEducation(); });
-  el("btnAddCert").addEventListener("click", ()=>{ STATE.resume.certifications.push({name:"",issuer:"",date:"",url:""}); saveState(STATE); renderCerts(); });
-  el("btnAddLang").addEventListener("click", ()=>{ STATE.resume.languages.push({name:"",level:""}); saveState(STATE); renderLangs(); });
-=======
   el("btnAddLink").addEventListener("click", ()=>{ STATE.resume.basics.links.push({label:"",url:""}); saveState(STATE); renderLinks(); updatePreview(CURRENT_PREVIEW); });
   el("btnAddExperience").addEventListener("click", ()=>{ STATE.resume.experience.push({company:"",role:"",startDate:"",endDate:"",highlights:[],tech:[]}); saveState(STATE); renderExperience(); updatePreview(CURRENT_PREVIEW); });
   el("btnAddProject").addEventListener("click", ()=>{ STATE.resume.projects.push({name:"",link:"",context:"",highlights:[],tech:[]}); saveState(STATE); renderProjects(); updatePreview(CURRENT_PREVIEW); });
   el("btnAddEducation").addEventListener("click", ()=>{ STATE.resume.education.push({institution:"",degree:"",startDate:"",endDate:"",details:[]}); saveState(STATE); renderEducation(); updatePreview(CURRENT_PREVIEW); });
   el("btnAddCert").addEventListener("click", ()=>{ STATE.resume.certifications.push({name:"",issuer:"",date:"",url:""}); saveState(STATE); renderCerts(); updatePreview(CURRENT_PREVIEW); });
   el("btnAddLang").addEventListener("click", ()=>{ STATE.resume.languages.push({name:"",level:""}); saveState(STATE); renderLangs(); updatePreview(CURRENT_PREVIEW); });
->>>>>>> 171611637715a803c90603fedafa0fc03b30786c
 
   // Preview Switchers
   el("btnPreviewATS").addEventListener("click", ()=>updatePreview("ats"));
