@@ -13,10 +13,15 @@
       }
       gtag("js", new Date());
 
-      gtag("config", "G-4G90RF2Z6N");
+      gtag("config", "G-4G90RF2Z6N", {
+        anonymize_ip: true,
+        allow_google_signals: false,
+        allow_ad_personalization_signals: false,
+      });
     </script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <title>Resume Builder Pro</title>
     <link
       rel="icon"
@@ -119,6 +124,7 @@
             <a
               href="https://antigravity.google/"
               target="_blank"
+              rel="noopener noreferrer"
               style="color: var(--primary)"
               >Antigravity</a
             >
@@ -128,6 +134,7 @@
             <a
               href="https://t.me/Interact2030"
               target="_blank"
+              rel="noopener noreferrer"
               style="color: var(--primary)"
               >لملتقى التعليم التفاعلي</a
             >
@@ -453,7 +460,11 @@
         </div>
 
         <div class="preview-frame-container">
-          <iframe id="previewFrame" title="Realtime Preview"></iframe>
+          <iframe
+            id="previewFrame"
+            title="Realtime Preview"
+            sandbox="allow-same-origin allow-modals"
+          ></iframe>
         </div>
       </aside>
     </div>

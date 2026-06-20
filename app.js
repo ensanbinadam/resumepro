@@ -59,7 +59,7 @@ function deepMerge(base, patch){
     const out = {...base};
     const p = (patch && typeof patch === "object") ? patch : {};
     for (const k of Object.keys(out)) out[k] = deepMerge(out[k], p[k]);
-    for (const k of Object.keys(p)) if (!(k in out)) out[k] = p[k];
+    for (const k of Object.keys(p)) if (!BLOCKED_MERGE_KEYS.has(k) && !(k in out)) out[k] = p[k];
     return out;
   }
   return (patch === undefined ? base : patch);
@@ -86,6 +86,9 @@ const val = (id, v) => { const e = el(id); if(e) e.value = v; }; // Safe setter
 const safe = (s) => (s ?? "").toString().trim();
 const splitCSV = (s) => (s||"").split(/[,،]+/).map(x=>x.trim()).filter(Boolean);
 const uniq = (arr) => [...new Set((arr||[]).map(safe).filter(Boolean))];
+const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+const BLOCKED_MERGE_KEYS = new Set(["__proto__", "prototype", "constructor"]);
 
 function htmlEscape(s){
   return (s ?? "").toString()
@@ -94,6 +97,39 @@ function htmlEscape(s){
     .replaceAll(">","&gt;")
     .replaceAll('"',"&quot;")
     .replaceAll("'","&#039;");
+}
+
+function attrEscape(s){
+  return htmlEscape(s).replaceAll("`", "&#096;");
+}
+
+function safeUrl(url){
+  let raw = safe(url);
+  if(!raw) return "";
+  if(/^www\./i.test(raw)) raw = `https://${raw}`;
+  if(/^[\p{L}\p{N}.-]+\.[a-z]{2,}(?:[/:?#]|$)/iu.test(raw) && !/^[a-z][a-z\d+.-]*:/i.test(raw)) {
+    raw = `https://${raw}`;
+  }
+  try {
+    const parsed = new URL(raw);
+    if(["http:", "https:", "mailto:", "tel:"].includes(parsed.protocol)) {
+      return attrEscape(parsed.href);
+    }
+  } catch {}
+  return "";
+}
+
+function safeImageSrc(src){
+  const raw = safe(src);
+  if(!raw) return "";
+  if(/^data:image\/(?:png|jpe?g|webp|gif);base64,[a-z0-9+/=\s]+$/i.test(raw)) {
+    return attrEscape(raw.replace(/\s/g, ""));
+  }
+  try {
+    const parsed = new URL(raw, window.location.href);
+    if(["http:", "https:"].includes(parsed.protocol)) return attrEscape(parsed.href);
+  } catch {}
+  return "";
 }
 
 function setDirAndLang(lang){
@@ -136,10 +172,27 @@ function showToast(msg, type="info"){
 }
 
 // ---------- App State ----------
-let STATE = normalizeState(JSON.parse(localStorage.getItem(STORAGE_KEY)));
+function loadState(){
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return normalizeState(stored ? JSON.parse(stored) : null);
+  } catch (error) {
+    console.warn("Saved resume data could not be loaded.", error);
+    return emptyState();
+  }
+}
+
+let STATE = loadState();
 
 function saveState(state){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    return true;
+  } catch (error) {
+    console.error("Could not save resume data.", error);
+    showToast("تعذر حفظ البيانات محلياً. قد تكون مساحة المتصفح ممتلئة.", "error");
+    return false;
+  }
 }
 
 // ---------- UI Logic ----------
@@ -515,6 +568,7 @@ function buildHTML(type, state){
   
   const isAr = options.outputLanguage === "ar";
   const dir = isAr ? "rtl" : "ltr";
+  const csp = "default-src 'none'; img-src data: https: http:; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; base-uri 'none'; form-action 'none';";
   
   // Choose Colors based on template
   let accent = "#4f46e5";
@@ -545,17 +599,28 @@ function buildHTML(type, state){
   if(type === "ats" || type === "cv"){
     // Header
     const basics = resume.basics;
+    const displayName = options.anonymize ? (isAr ? "مرشح" : "Candidate") : basics.name;
+    const displayEmail = options.anonymize ? "" : basics.email;
+    const displayPhone = options.anonymize ? "" : basics.phone;
+    const displayLocation = options.anonymize ? "" : basics.location;
+    const photoSrc = safeImageSrc(basics.photo);
+    const contactLinks = (basics.links || []).map(l => {
+      const label = htmlEscape(l.label || "Link");
+      const href = safeUrl(l.url);
+      return href ? `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>` : (label ? `<span>${label}</span>` : "");
+    }).filter(Boolean).join(" • ");
+
     body += `
       <header style="display: flex; gap: 20px; align-items: center; margin-bottom: 20px;">
-        ${options.includePhoto && basics.photo ? `<img src="${basics.photo}" alt="Profile" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent);">` : ""}
+        ${options.includePhoto && !options.anonymize && photoSrc ? `<img src="${photoSrc}" alt="Profile" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent);">` : ""}
         <div>
-          <h1>${htmlEscape(basics.name)}</h1>
+          <h1>${htmlEscape(displayName)}</h1>
           <div class="job-title">${htmlEscape(basics.headline)}</div>
           <div class="contact-line">
-            ${basics.email ? `<span>📧 ${htmlEscape(basics.email)}</span>` : ""}
-            ${basics.phone ? `<span>📱 ${htmlEscape(basics.phone)}</span>` : ""}
-            ${basics.location ? `<span>📍 ${htmlEscape(basics.location)}</span>` : ""}
-            ${(basics.links||[]).map(l=>`<a href="${l.url}">${htmlEscape(l.label||"Link")}</a>`).join(" • ")}
+            ${displayEmail ? `<span>📧 ${htmlEscape(displayEmail)}</span>` : ""}
+            ${displayPhone ? `<span>📱 ${htmlEscape(displayPhone)}</span>` : ""}
+            ${displayLocation ? `<span>📍 ${htmlEscape(displayLocation)}</span>` : ""}
+            ${options.anonymize ? "" : contactLinks}
           </div>
         </div>
       </header>
@@ -590,10 +655,11 @@ function buildHTML(type, state){
     if(resume.projects.length){
       body += `<section><h2>${isAr?"المشاريع":"Projects"}</h2>`;
       resume.projects.forEach(p=>{
+        const projectHref = safeUrl(p.link);
         body += `
           <div style="margin-bottom:12px;">
             <div class="row">
-              <strong style="font-size:14px;">${htmlEscape(p.name)} ${p.link?`<a href="${p.link}" style="font-size:12px;">↗</a>`:""}</strong>
+              <strong style="font-size:14px;">${htmlEscape(p.name)} ${projectHref ? `<a href="${projectHref}" target="_blank" rel="noopener noreferrer" style="font-size:12px;">↗</a>` : ""}</strong>
             </div>
             <div style="font-size:13px; margin-bottom:4px;">${htmlEscape(p.context)}</div>
             ${p.highlights.length ? `<ul>${p.highlights.map(h=>`<li>${htmlEscape(h)}</li>`).join("")}</ul>` : ""}
@@ -631,13 +697,17 @@ function buildHTML(type, state){
   else if (type === "cover") {
     // Simple Cover Letter logic
     const cl = resume.coverLetter;
+    const displayName = options.anonymize ? (isAr ? "مرشح" : "Candidate") : resume.basics.name;
+    const displayEmail = options.anonymize ? "" : resume.basics.email;
+    const displayPhone = options.anonymize ? "" : resume.basics.phone;
+    const today = new Intl.DateTimeFormat(isAr ? "ar-SA" : "en-US", { dateStyle: "long" }).format(new Date());
     body += `
       <header style="border-bottom: 2px solid var(--line); padding-bottom: 20px; margin-bottom: 30px;">
-        <h1 style="font-size:24px;">${htmlEscape(resume.basics.name)}</h1>
-        <div class="contact-line">${htmlEscape(resume.basics.email)} | ${htmlEscape(resume.basics.phone)}</div>
+        <h1 style="font-size:24px;">${htmlEscape(displayName)}</h1>
+        <div class="contact-line">${[displayEmail, displayPhone].filter(Boolean).map(htmlEscape).join(" | ")}</div>
       </header>
       <div style="margin-bottom: 30px; font-size: 14px; color: var(--muted);">
-        <div>${new Date().toDateString()}</div>
+        <div>${htmlEscape(today)}</div>
         <div style="margin-top:10px;"><strong>To:</strong> ${htmlEscape(cl.hiringManager || "Hiring Manager")}</div>
         <div>${htmlEscape(cl.company)}</div>
       </div>
@@ -648,32 +718,36 @@ function buildHTML(type, state){
         <p>Thank you for your time and consideration.</p>
         <br>
         <p>Sincerely,</p>
-        <p><strong>${htmlEscape(resume.basics.name)}</strong></p>
+        <p><strong>${htmlEscape(displayName)}</strong></p>
       </div>
     `;
   }
 
-  return `<!doctype html><html lang="${isAr?"ar":"en"}" dir="${dir}"><head><meta charset="utf-8"><title>Preview</title><style>${css}</style></head><body><div class="page">${body}</div></body></html>`;
+  return `<!doctype html><html lang="${isAr?"ar":"en"}" dir="${dir}"><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Preview</title><style>${css}</style></head><body><div class="page">${body}</div></body></html>`;
 }
 
 // ---------- Main Wiring ----------
+let currentPreviewType = "ats";
 
 function updatePreview(type){
-  const html = buildHTML(type || "ats", STATE);
+  currentPreviewType = type || currentPreviewType || "ats";
+  const html = buildHTML(currentPreviewType, STATE);
   el("previewFrame").srcdoc = html;
   updateATSPanel();
 }
 
 function wireEvents(){
   // Auto-save input bindings
-  document.body.addEventListener("input", (e)=>{
+  const syncFromFormEvent = (e)=>{
     if(e.target.matches("input, textarea, select")){
       collectFromUI();
       // Debounce preview update slightly
       if(window._previewTimer) clearTimeout(window._previewTimer);
-      window._previewTimer = setTimeout(()=>updatePreview("ats"), 500); 
+      window._previewTimer = setTimeout(()=>updatePreview(currentPreviewType), 500);
     }
-  });
+  };
+  document.body.addEventListener("input", syncFromFormEvent);
+  document.body.addEventListener("change", syncFromFormEvent);
 
   const photoInput = el("inPhoto");
   if (photoInput) {
@@ -682,7 +756,17 @@ function wireEvents(){
       if (!file) {
         STATE.resume.basics.photo = "";
         saveState(STATE);
-        updatePreview("ats");
+        updatePreview(currentPreviewType);
+        return;
+      }
+      if(!/^image\/(png|jpe?g|webp)$/i.test(file.type || "")) {
+        showToast("الرجاء اختيار صورة PNG أو JPG أو WebP فقط", "error");
+        e.target.value = "";
+        return;
+      }
+      if(file.size > MAX_PHOTO_BYTES) {
+        showToast("حجم الصورة كبير. اختر صورة أقل من 5MB.", "error");
+        e.target.value = "";
         return;
       }
       const reader = new FileReader();
@@ -714,17 +798,23 @@ function wireEvents(){
           const compressed = canvas.toDataURL('image/jpeg', 0.8);
           
           try {
+            const previousPhoto = STATE.resume.basics.photo;
             STATE.resume.basics.photo = compressed;
-            saveState(STATE);
-            updatePreview("ats");
-            showToast("تم إضافة الصورة بنجاح", "success");
+            if(saveState(STATE)) {
+              updatePreview(currentPreviewType);
+              showToast("تم إضافة الصورة بنجاح", "success");
+            } else {
+              STATE.resume.basics.photo = previousPhoto;
+            }
           } catch (e) {
             console.error(e);
             showToast("الصورة لا تزال كبيرة جداً على ذاكرة المتصفح", "error");
           }
         };
+        img.onerror = () => showToast("تعذر قراءة الصورة المختارة", "error");
         img.src = event.target.result;
       };
+      reader.onerror = () => showToast("تعذر قراءة ملف الصورة", "error");
       reader.readAsDataURL(file);
     });
   }
@@ -735,6 +825,7 @@ function wireEvents(){
       STATE = emptyState();
       saveState(STATE);
       fillUI();
+      updatePreview("ats");
       showToast("تم إنشاء سيرة ذاتية جديدة", "success");
     }
   });
@@ -881,11 +972,17 @@ function wireEvents(){
   el("fileImport").addEventListener("change", async (e)=>{
     const f = e.target.files[0];
     if(!f) return;
+    if(f.size > MAX_IMPORT_BYTES) {
+      showToast("ملف JSON كبير جداً. الحد الأقصى 2MB.", "error");
+      e.target.value = "";
+      return;
+    }
     try {
       const text = await f.text();
       STATE = normalizeState(JSON.parse(text));
       saveState(STATE);
       fillUI();
+      updatePreview(currentPreviewType);
       showToast("تم استيراد البيانات بنجاح", "success");
     } catch {
       showToast("خطأ في قراءة ملف JSON", "error");
@@ -898,18 +995,19 @@ function wireEvents(){
     if(!desc) return showToast("الرجاء لصق الوصف الوظيفي أولاً", "info");
     const kws = extractKeywords(desc);
     STATE.resume.meta.keywords = kws;
+    saveState(STATE);
     renderKeywordChips();
-    updatePreview("ats");
+    updatePreview(currentPreviewType);
     showToast(`تم استخراج ${kws.length} كلمة مفتاحية`, "success");
   });
 
   // Add Item Buttons
-  el("btnAddLink").addEventListener("click", ()=>{ STATE.resume.basics.links.push({label:"",url:""}); renderLinks(); });
-  el("btnAddExperience").addEventListener("click", ()=>{ STATE.resume.experience.push({company:"",role:"",startDate:"",endDate:"",highlights:[],tech:[]}); renderExperience(); });
-  el("btnAddProject").addEventListener("click", ()=>{ STATE.resume.projects.push({name:"",link:"",context:"",highlights:[],tech:[]}); renderProjects(); });
-  el("btnAddEducation").addEventListener("click", ()=>{ STATE.resume.education.push({institution:"",degree:"",startDate:"",endDate:"",details:[]}); renderEducation(); });
-  el("btnAddCert").addEventListener("click", ()=>{ STATE.resume.certifications.push({name:"",issuer:"",date:"",url:""}); renderCerts(); });
-  el("btnAddLang").addEventListener("click", ()=>{ STATE.resume.languages.push({name:"",level:""}); renderLangs(); });
+  el("btnAddLink").addEventListener("click", ()=>{ STATE.resume.basics.links.push({label:"",url:""}); saveState(STATE); renderLinks(); });
+  el("btnAddExperience").addEventListener("click", ()=>{ STATE.resume.experience.push({company:"",role:"",startDate:"",endDate:"",highlights:[],tech:[]}); saveState(STATE); renderExperience(); });
+  el("btnAddProject").addEventListener("click", ()=>{ STATE.resume.projects.push({name:"",link:"",context:"",highlights:[],tech:[]}); saveState(STATE); renderProjects(); });
+  el("btnAddEducation").addEventListener("click", ()=>{ STATE.resume.education.push({institution:"",degree:"",startDate:"",endDate:"",details:[]}); saveState(STATE); renderEducation(); });
+  el("btnAddCert").addEventListener("click", ()=>{ STATE.resume.certifications.push({name:"",issuer:"",date:"",url:""}); saveState(STATE); renderCerts(); });
+  el("btnAddLang").addEventListener("click", ()=>{ STATE.resume.languages.push({name:"",level:""}); saveState(STATE); renderLangs(); });
 
   // Preview Switchers
   el("btnPreviewATS").addEventListener("click", ()=>updatePreview("ats"));
