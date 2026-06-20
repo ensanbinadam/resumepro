@@ -777,7 +777,7 @@ function buildHTML(type, state){
   const isAr = options.outputLanguage === "ar";
   const isATS = type === "ats";
   const dir = isAr ? "rtl" : "ltr";
-  const csp = "default-src 'none'; img-src data: https: http:; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; base-uri 'none'; form-action 'none';";
+  const csp = "default-src 'none'; script-src 'none'; object-src 'none'; img-src data: https: http:; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; base-uri 'none'; form-action 'none';";
   const labels = {
     summary: isAr ? "الملخص المهني" : "Summary",
     experience: isAr ? "الخبرة المهنية" : "Experience",
